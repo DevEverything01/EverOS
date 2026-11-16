@@ -24,6 +24,7 @@ from .cors import DEFAULT_CORS_ORIGINS as DEFAULT_CORS_ORIGINS
 from .profile import ProfileMiddleware as ProfileMiddleware
 from .prometheus import PrometheusMiddleware as PrometheusMiddleware
 from .request_id import RequestIdMiddleware as RequestIdMiddleware
+from .request_logging import RequestLoggingMiddleware as RequestLoggingMiddleware
 from .write_tracking import WriteTrackingMiddleware as WriteTrackingMiddleware
 
 __all__ = [
@@ -35,6 +36,7 @@ __all__ = [
     "ProfileMiddleware",
     "PrometheusMiddleware",
     "RequestIdMiddleware",
+    "RequestLoggingMiddleware",
     "WriteTrackingMiddleware",
     "require_any_scope",
     "require_scope",

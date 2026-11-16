@@ -2891,6 +2891,424 @@
           }
         }
       }
+    },
+    "/api/v2/admin/request-logs": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Request Logs",
+        "description": "List request logs with optional filters.\n\nReturns newest first. Use ``from`` and ``to`` for time range filtering.",
+        "operationId": "list_request_logs_api_v2_admin_request_logs_get",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Method"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Path"
+            }
+          },
+          {
+            "name": "api_key_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Api Key Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_RequestLogListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/request-logs/{log_id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Request Log",
+        "description": "Get a single request log by ID.",
+        "operationId": "get_request_log_api_v2_admin_request_logs__log_id__get",
+        "parameters": [
+          {
+            "name": "log_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Log Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_RequestLogItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/usage": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Usage",
+        "description": "Get usage statistics for a time range.\n\nArgs:\n    range_param: One of ``24h``, ``7d``, ``30d``.\n\nReturns:\n    Bucketed usage data (hourly for 24h, daily otherwise) with totals.",
+        "operationId": "get_usage_api_v2_admin_usage_get",
+        "parameters": [
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "24h",
+              "title": "Range"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_UsageResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/overview": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Overview",
+        "description": "Get system overview for the dashboard.\n\nReturns space info, counts, storage size, model, version, auth mode.",
+        "operationId": "get_overview_api_v2_admin_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_OverviewResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/memories": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Memories",
+        "description": "Browse memories without a query vector.\n\nUse ``user_id`` and ``q`` (keyword search) to filter.",
+        "operationId": "list_memories_api_v2_admin_memories_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_MemoryListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/memories/{memory_id}": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Memory",
+        "description": "Get a single memory by ID.",
+        "operationId": "get_memory_api_v2_admin_memories__memory_id__get",
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Memory Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_dict_str__Any__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/agents": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Agents",
+        "description": "List all agents with their case and skill counts.",
+        "operationId": "list_agents_api_v2_admin_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_AgentListResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2942,6 +3360,52 @@
           "status"
         ],
         "title": "AddResponseData"
+      },
+      "AgentItem": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "case_count": {
+            "type": "integer",
+            "title": "Case Count",
+            "default": 0
+          },
+          "skill_count": {
+            "type": "integer",
+            "title": "Skill Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id"
+        ],
+        "title": "AgentItem",
+        "description": "An agent in the list."
+      },
+      "AgentListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AgentListResponse",
+        "description": "List of agents."
       },
       "Body_create_document_route_api_v1_knowledge_documents_post": {
         "properties": {
@@ -4915,6 +5379,102 @@
         "title": "MemorizeQueueHealthBlock",
         "description": "Readiness of the ``async_mode`` memorize queue.\n\n``healthy`` is the delivery loop being alive. The probe only observes;\nthe loop relaunches itself (and on the next ``/add``), and\n``loop_restarts`` counts how often that happened. ``pending`` and\n``oldest_pending_age_s`` are the backlog: growing with a live loop means\ndelivery is slower than arrival (or the LLM is down), which is a\ncapacity signal, not a liveness one. Alert on ``healthy`` and on\n``loop_restarts`` changing."
       },
+      "MemoryListItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "memory_type": {
+            "type": "string",
+            "title": "Memory Type"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "memory_type"
+        ],
+        "title": "MemoryListItem",
+        "description": "A memory item in the browse list."
+      },
+      "MemoryListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MemoryListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "MemoryListResponse",
+        "description": "Paginated memory list."
+      },
       "MessageItemDTO": {
         "properties": {
           "sender_id": {
@@ -4998,6 +5558,110 @@
           "content"
         ],
         "title": "MessageItemDTO"
+      },
+      "OverviewCounts": {
+        "properties": {
+          "profiles": {
+            "type": "integer",
+            "title": "Profiles",
+            "default": 0
+          },
+          "profile_items": {
+            "type": "integer",
+            "title": "Profile Items",
+            "default": 0
+          },
+          "episodes": {
+            "type": "integer",
+            "title": "Episodes",
+            "default": 0
+          },
+          "cases": {
+            "type": "integer",
+            "title": "Cases",
+            "default": 0
+          },
+          "skills": {
+            "type": "integer",
+            "title": "Skills",
+            "default": 0
+          },
+          "agents": {
+            "type": "integer",
+            "title": "Agents",
+            "default": 0
+          },
+          "knowledge_docs": {
+            "type": "integer",
+            "title": "Knowledge Docs",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "OverviewCounts",
+        "description": "Memory type counts."
+      },
+      "OverviewResponse": {
+        "properties": {
+          "space": {
+            "type": "string",
+            "title": "Space"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/OverviewCounts"
+          },
+          "storage_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Bytes"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "auth_mode": {
+            "type": "string",
+            "title": "Auth Mode"
+          },
+          "quota": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "space",
+          "counts",
+          "version",
+          "auth_mode"
+        ],
+        "title": "OverviewResponse",
+        "description": "System overview for the dashboard."
       },
       "PurgeConfirmRequest": {
         "properties": {
@@ -5419,6 +6083,108 @@
         ],
         "title": "QuiesceResponse",
         "description": "What the final drain accomplished, and what it left behind.\n\n``pending_before`` is the queue depth on arrival: a caller that expected the\nprojection to be up to date can assert it was 0 and learn otherwise. Anything\nabove 0 in ``pending_after`` means the drain could not finish -- the index is\nNOT a complete projection of the markdown, and searching it will silently\nunder-recall."
+      },
+      "RequestLogItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "client": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client"
+          },
+          "api_key_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key Id"
+          },
+          "bytes_out": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes Out"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "ts",
+          "request_id",
+          "method",
+          "path",
+          "status",
+          "latency_ms",
+          "client",
+          "api_key_id",
+          "bytes_out"
+        ],
+        "title": "RequestLogItem",
+        "description": "A single request log entry."
+      },
+      "RequestLogListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RequestLogItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "RequestLogListResponse",
+        "description": "Paginated request log list."
       },
       "RunSummary": {
         "properties": {
@@ -6092,6 +6858,23 @@
         ],
         "title": "SuccessEnvelope[AddResponseData]"
       },
+      "SuccessEnvelope_AgentListResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AgentListResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[AgentListResponse]"
+      },
       "SuccessEnvelope_CategoryListResponse_": {
         "properties": {
           "request_id": {
@@ -6245,6 +7028,40 @@
         ],
         "title": "SuccessEnvelope[KnowledgeSearchResponse]"
       },
+      "SuccessEnvelope_MemoryListResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/MemoryListResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[MemoryListResponse]"
+      },
+      "SuccessEnvelope_OverviewResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/OverviewResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[OverviewResponse]"
+      },
       "SuccessEnvelope_PurgeJobData_": {
         "properties": {
           "request_id": {
@@ -6278,6 +7095,40 @@
           "data"
         ],
         "title": "SuccessEnvelope[PurgeRequestData]"
+      },
+      "SuccessEnvelope_RequestLogItem_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RequestLogItem"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[RequestLogItem]"
+      },
+      "SuccessEnvelope_RequestLogListResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RequestLogListResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[RequestLogListResponse]"
       },
       "SuccessEnvelope_TaskItem_": {
         "properties": {
@@ -6329,6 +7180,42 @@
           "data"
         ],
         "title": "SuccessEnvelope[TopicDetailResponse]"
+      },
+      "SuccessEnvelope_UsageResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/UsageResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[UsageResponse]"
+      },
+      "SuccessEnvelope_dict_str__Any__": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[dict[str, Any]]"
       },
       "TaskItem": {
         "properties": {
@@ -6758,6 +7645,105 @@
         ],
         "title": "UnprocessedMessageDTO",
         "description": "A raw message still in the boundary-detection buffer.\n\nNo extracted memcell yet, no owner inference yet (attribution\nhappens at boundary detection). Returned by ``/search`` **only when**\n``filters.session_id`` is present as a top-level eq predicate —\nunprocessed messages have no ``user_id`` / ``agent_id`` to filter\non, so session is the only meaningful query dimension."
+      },
+      "UsageBucket": {
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "title": "Bucket"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket",
+          "metrics"
+        ],
+        "title": "UsageBucket",
+        "description": "One bucket of usage data."
+      },
+      "UsageQuota": {
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "used": {
+            "type": "integer",
+            "title": "Used"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "limit",
+          "used",
+          "remaining"
+        ],
+        "title": "UsageQuota",
+        "description": "Quota limits and usage."
+      },
+      "UsageResponse": {
+        "properties": {
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/UsageBucket"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "totals": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Totals"
+          },
+          "quota": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/UsageQuota"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "series",
+          "totals"
+        ],
+        "title": "UsageResponse",
+        "description": "Usage statistics with optional quota info."
       },
       "ValidationError": {
         "properties": {

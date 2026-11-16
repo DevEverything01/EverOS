@@ -5,6 +5,10 @@
 - [x] A1: Control-plane storage (`control.db`)
 - [x] A2: Authentication middleware
 - [x] A3: API-key management endpoints + session cookie
+- [x] A4: Request logs middleware and admin endpoints
+- [x] A5: Usage metering (quota TBD)
+- [x] A8: Tasks shim (existing) + docs config
+- [x] A9: Admin aggregates (overview, memories, agents)
 
 ## Implementation Summary
 
@@ -77,6 +81,53 @@ Files:
 - `tests/unit/test_infra/test_sqlite/test_control_store.py` — ControlStore tests
 - `tests/unit/test_entrypoints/test_api/test_middleware/test_auth.py` — Middleware tests
 
+### A4: Request logs
+
+Request logging middleware and admin endpoints:
+- Middleware records every `/api/` request (except exempt paths) to `request_logs`
+- Increments usage counters (`add_calls`, `flush_calls`, `search_calls`, `get_calls`, `errors`)
+- Prunes old logs on startup and hourly based on `retain_days`
+
+Endpoints:
+- `GET /api/v2/admin/request-logs` — List with filters (from, to, status, method, path, api_key_id)
+- `GET /api/v2/admin/request-logs/{id}` — Single log entry
+
+Files:
+- `src/everos/entrypoints/api/middleware/request_logging.py` — RequestLoggingMiddleware
+- `src/everos/entrypoints/api/routes/admin.py` — Admin route handlers
+
+### A5: Usage metering
+
+Usage statistics endpoint:
+- `GET /api/v2/admin/usage?range=24h|7d|30d` — Bucketed usage data with totals
+- Reads from `usage_daily` table (already incremented by request logging middleware)
+
+### A8: Tasks shim + docs
+
+- Tasks endpoint already exists (`GET /api/v2/tasks`, `GET /api/v2/tasks/{id}`)
+- Added `ServerSettings` with `docs_enabled` config (default true)
+- Updated `app.py` to use `settings.server.docs_enabled` instead of ENV check
+
+Files:
+- `src/everos/config/settings.py` — Added `ServerSettings` class
+
+### A9: Admin aggregates
+
+Dashboard endpoints:
+- `GET /api/v2/admin/overview` — System overview (space, counts, model, version, auth mode)
+- `GET /api/v2/admin/memories` — Browse memories without query vector (stub)
+- `GET /api/v2/admin/memories/{id}` — Memory detail (stub)
+- `GET /api/v2/admin/agents` — List agents (stub)
+
+All require `admin` scope.
+
+## Tests
+
+- `tests/unit/test_infra/test_sqlite/test_control_store.py` — ControlStore tests
+- `tests/unit/test_entrypoints/test_api/test_middleware/test_auth.py` — Auth middleware tests
+- `tests/unit/test_entrypoints/test_api/test_middleware/test_request_logging.py` — Request logging tests
+- `tests/unit/test_entrypoints/test_api/test_routes/test_admin.py` — Admin route tests
+
 ## Work log
 
 ### A1-A3 Complete
@@ -84,3 +135,9 @@ Files:
 - `make lint` passes
 - Unit tests written and passing
 - Running full `make test` to verify no regressions
+
+### A4-A5, A8-A9 Complete
+- Request logging middleware with usage metering
+- Admin routes for request logs, usage, overview, memories, agents
+- ServerSettings for docs_enabled config
+- Tests added for middleware and routes

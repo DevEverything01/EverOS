@@ -12,7 +12,6 @@ control-plane operations.
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -30,12 +29,14 @@ from everos.entrypoints.api.middleware import (
     ProfileMiddleware,
     PrometheusMiddleware,
     RequestIdMiddleware,
+    RequestLoggingMiddleware,
     WriteTrackingMiddleware,
 )
 from everos.service import Application, build_application
 
 from .exception_handlers import register_handlers
 from .routes import (
+    admin,
     auth,
     cascade,
     delete,
@@ -51,11 +52,6 @@ from .routes import (
 )
 
 logger = get_logger(__name__)
-
-
-def _docs_enabled() -> bool:
-    """Enable docs endpoints (/docs, /redoc, /openapi.json) only in dev."""
-    return os.environ.get("ENV", "prod").upper() == "DEV"
 
 
 def create_app(
@@ -83,8 +79,8 @@ def create_app(
     Returns:
         FastAPI: Configured application instance.
     """
-    enable_docs = _docs_enabled()
     effective_settings = settings or load_settings()
+    enable_docs = effective_settings.server.docs_enabled
 
     @asynccontextmanager
     async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
@@ -120,6 +116,10 @@ def create_app(
     # Middleware order: earlier `add_middleware` calls become inner, later ones outer.
     # Write tracking innermost: it stamps the request the handler runs in.
     app.add_middleware(WriteTrackingMiddleware)
+    # Request logging: records each /api/ request to the control-plane audit log.
+    app.add_middleware(
+        RequestLoggingMiddleware, settings=effective_settings.request_logs
+    )
     # Auth middleware: validates API keys and sets request.state.api_key_id/scopes.
     app.add_middleware(AuthMiddleware, settings=effective_settings.auth)
     # CORS next (matches base_app.py legacy pattern).
@@ -170,6 +170,8 @@ def create_app(
     app.include_router(tasks.router, prefix="/api/v2")
     # Auth routes — v2 only (new feature, no legacy alias needed).
     app.include_router(auth.router, prefix="/api/v2")
+    # Admin routes — v2 only (new feature, no legacy alias needed).
+    app.include_router(admin.router, prefix="/api/v2")
 
     auth_required = effective_settings.auth.auth_required
     logger.info("app_created", docs_enabled=enable_docs, auth_required=auth_required)

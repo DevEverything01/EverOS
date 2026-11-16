@@ -24,7 +24,7 @@ _V1 = "/api/v1/"
 _V2 = "/api/v2/"
 
 # Routes that are v2-only (no v1 legacy alias needed)
-_V2_ONLY_PREFIXES = ("/api/v2/auth/",)
+_V2_ONLY_PREFIXES = ("/api/v2/auth/", "/api/v2/admin/")
 
 
 def _openapi_paths() -> dict[str, dict]:

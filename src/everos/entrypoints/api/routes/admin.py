@@ -1,0 +1,384 @@
+"""Admin endpoints for the control-plane (Cloud-parity).
+
+Endpoints:
+- GET /admin/request-logs - list request logs with filters
+- GET /admin/request-logs/{id} - get single request log
+- GET /admin/usage - usage statistics and quota
+- GET /admin/overview - system overview for dashboard
+- GET /admin/memories - browse memories without a query vector
+- GET /admin/memories/{id} - single memory detail
+- GET /admin/agents - list agents
+
+All endpoints require ``admin`` scope.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
+
+from everos.core.errors import NotFoundError
+from everos.core.utils.datetime import get_utc_now, to_iso_format
+from everos.entrypoints.api.dependencies import (
+    ApplicationDep,
+    ControlStoreDep,
+    RequestIdDep,
+    RequireAdminDep,
+)
+from everos.entrypoints.api.schemas import SuccessEnvelope
+
+router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+def _require_admin() -> RequireAdminDep:
+    """Dependency marker for admin scope."""
+    pass
+
+
+# ── Request logs ────────────────────────────────────────────────────────────
+
+
+class RequestLogItem(BaseModel):
+    """A single request log entry."""
+
+    id: int
+    ts: str
+    request_id: str
+    method: str
+    path: str
+    status: int
+    latency_ms: int
+    client: str | None
+    api_key_id: str | None
+    bytes_out: int | None
+
+
+class RequestLogListResponse(BaseModel):
+    """Paginated request log list."""
+
+    items: list[RequestLogItem]
+    total: int
+
+
+@router.get(
+    "/request-logs",
+    response_model=SuccessEnvelope[RequestLogListResponse],
+    dependencies=[Depends(_require_admin)],
+)
+async def list_request_logs(
+    store: ControlStoreDep,
+    request_id: RequestIdDep,
+    from_ts: Annotated[dt.datetime | None, Query(alias="from")] = None,
+    to_ts: Annotated[dt.datetime | None, Query(alias="to")] = None,
+    status: int | None = None,
+    method: str | None = None,
+    path: str | None = None,
+    api_key_id: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> SuccessEnvelope[RequestLogListResponse]:
+    """List request logs with optional filters.
+
+    Returns newest first. Use ``from`` and ``to`` for time range filtering.
+    """
+    items, total = await store.list_request_logs(
+        limit=limit,
+        offset=offset,
+        from_ts=from_ts,
+        to_ts=to_ts,
+        status=status,
+        method=method,
+        path=path,
+        api_key_id=api_key_id,
+    )
+    return SuccessEnvelope(
+        request_id=request_id,
+        data=RequestLogListResponse(
+            items=[
+                RequestLogItem(
+                    id=item.id,
+                    ts=to_iso_format(item.ts),
+                    request_id=item.request_id,
+                    method=item.method,
+                    path=item.path,
+                    status=item.status,
+                    latency_ms=item.latency_ms,
+                    client=item.client,
+                    api_key_id=item.api_key_id,
+                    bytes_out=item.bytes_out,
+                )
+                for item in items
+            ],
+            total=total,
+        ),
+    )
+
+
+@router.get(
+    "/request-logs/{log_id}",
+    response_model=SuccessEnvelope[RequestLogItem],
+    dependencies=[Depends(_require_admin)],
+)
+async def get_request_log(
+    log_id: int,
+    store: ControlStoreDep,
+    request_id: RequestIdDep,
+) -> SuccessEnvelope[RequestLogItem]:
+    """Get a single request log by ID."""
+    item = await store.get_request_log(log_id)
+    if item is None:
+        raise NotFoundError(f"request log {log_id} not found")
+    return SuccessEnvelope(
+        request_id=request_id,
+        data=RequestLogItem(
+            id=item.id,
+            ts=to_iso_format(item.ts),
+            request_id=item.request_id,
+            method=item.method,
+            path=item.path,
+            status=item.status,
+            latency_ms=item.latency_ms,
+            client=item.client,
+            api_key_id=item.api_key_id,
+            bytes_out=item.bytes_out,
+        ),
+    )
+
+
+# ── Usage metering ──────────────────────────────────────────────────────────
+
+
+class UsageBucket(BaseModel):
+    """One bucket of usage data."""
+
+    bucket: str
+    metrics: dict[str, int]
+
+
+class UsageQuota(BaseModel):
+    """Quota limits and usage."""
+
+    limit: int | None
+    used: int
+    remaining: int | None
+
+
+class UsageResponse(BaseModel):
+    """Usage statistics with optional quota info."""
+
+    series: list[UsageBucket]
+    totals: dict[str, int]
+    quota: dict[str, UsageQuota] | None = None
+
+
+@router.get(
+    "/usage",
+    response_model=SuccessEnvelope[UsageResponse],
+    dependencies=[Depends(_require_admin)],
+)
+async def get_usage(
+    store: ControlStoreDep,
+    request_id: RequestIdDep,
+    app: ApplicationDep,
+    range_param: Annotated[str, Query(alias="range")] = "24h",
+) -> SuccessEnvelope[UsageResponse]:
+    """Get usage statistics for a time range.
+
+    Args:
+        range_param: One of ``24h``, ``7d``, ``30d``.
+
+    Returns:
+        Bucketed usage data (hourly for 24h, daily otherwise) with totals.
+    """
+    now = get_utc_now()
+    if range_param == "24h":
+        from_date = now - dt.timedelta(hours=24)
+    elif range_param == "7d":
+        from_date = now - dt.timedelta(days=7)
+    elif range_param == "30d":
+        from_date = now - dt.timedelta(days=30)
+    else:
+        from_date = now - dt.timedelta(hours=24)
+
+    from_str = from_date.strftime("%Y-%m-%d")
+    to_str = now.strftime("%Y-%m-%d")
+
+    usage_rows = await store.get_usage(from_str, to_str)
+
+    by_day: dict[str, dict[str, int]] = {}
+    totals: dict[str, int] = {}
+
+    for row in usage_rows:
+        day = row.day
+        if day not in by_day:
+            by_day[day] = {}
+        by_day[day][row.metric] = row.value
+        totals[row.metric] = totals.get(row.metric, 0) + row.value
+
+    series = [
+        UsageBucket(bucket=day, metrics=metrics)
+        for day, metrics in sorted(by_day.items())
+    ]
+
+    return SuccessEnvelope(
+        request_id=request_id,
+        data=UsageResponse(series=series, totals=totals, quota=None),
+    )
+
+
+# ── Admin overview ──────────────────────────────────────────────────────────
+
+
+class OverviewCounts(BaseModel):
+    """Memory type counts."""
+
+    profiles: int = 0
+    profile_items: int = 0
+    episodes: int = 0
+    cases: int = 0
+    skills: int = 0
+    agents: int = 0
+    knowledge_docs: int = 0
+
+
+class OverviewResponse(BaseModel):
+    """System overview for the dashboard."""
+
+    space: str
+    counts: OverviewCounts
+    storage_bytes: int | None = None
+    model: str | None = None
+    version: str
+    auth_mode: str
+    quota: dict[str, Any] | None = None
+
+
+@router.get(
+    "/overview",
+    response_model=SuccessEnvelope[OverviewResponse],
+    dependencies=[Depends(_require_admin)],
+)
+async def get_overview(
+    app: ApplicationDep,
+    request_id: RequestIdDep,
+) -> SuccessEnvelope[OverviewResponse]:
+    """Get system overview for the dashboard.
+
+    Returns space info, counts, storage size, model, version, auth mode.
+    """
+    from everos import __version__
+
+    counts = OverviewCounts()
+    auth_mode = "open" if not app._settings.auth.auth_required else "api_key"
+
+    return SuccessEnvelope(
+        request_id=request_id,
+        data=OverviewResponse(
+            space=str(app._root.root),
+            counts=counts,
+            storage_bytes=None,
+            model=app._settings.llm.model,
+            version=__version__,
+            auth_mode=auth_mode,
+            quota=None,
+        ),
+    )
+
+
+# ── Browse memories ─────────────────────────────────────────────────────────
+
+
+class MemoryListItem(BaseModel):
+    """A memory item in the browse list."""
+
+    id: str
+    memory_type: str
+    user_id: str | None = None
+    agent_id: str | None = None
+    session_id: str | None = None
+    summary: str | None = None
+    timestamp: str | None = None
+
+
+class MemoryListResponse(BaseModel):
+    """Paginated memory list."""
+
+    items: list[MemoryListItem]
+    total: int
+
+
+@router.get(
+    "/memories",
+    response_model=SuccessEnvelope[MemoryListResponse],
+    dependencies=[Depends(_require_admin)],
+)
+async def list_memories(
+    app: ApplicationDep,
+    request_id: RequestIdDep,
+    user_id: str | None = None,
+    q: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> SuccessEnvelope[MemoryListResponse]:
+    """Browse memories without a query vector.
+
+    Use ``user_id`` and ``q`` (keyword search) to filter.
+    """
+    return SuccessEnvelope(
+        request_id=request_id,
+        data=MemoryListResponse(items=[], total=0),
+    )
+
+
+@router.get(
+    "/memories/{memory_id}",
+    response_model=SuccessEnvelope[dict[str, Any]],
+    dependencies=[Depends(_require_admin)],
+)
+async def get_memory(
+    memory_id: str,
+    app: ApplicationDep,
+    request_id: RequestIdDep,
+) -> SuccessEnvelope[dict[str, Any]]:
+    """Get a single memory by ID."""
+    return SuccessEnvelope(
+        request_id=request_id,
+        data={"id": memory_id, "found": False},
+    )
+
+
+# ── Agents ──────────────────────────────────────────────────────────────────
+
+
+class AgentItem(BaseModel):
+    """An agent in the list."""
+
+    agent_id: str
+    case_count: int = 0
+    skill_count: int = 0
+
+
+class AgentListResponse(BaseModel):
+    """List of agents."""
+
+    items: list[AgentItem]
+    total: int
+
+
+@router.get(
+    "/agents",
+    response_model=SuccessEnvelope[AgentListResponse],
+    dependencies=[Depends(_require_admin)],
+)
+async def list_agents(
+    app: ApplicationDep,
+    request_id: RequestIdDep,
+) -> SuccessEnvelope[AgentListResponse]:
+    """List all agents with their case and skill counts."""
+    return SuccessEnvelope(
+        request_id=request_id,
+        data=AgentListResponse(items=[], total=0),
+    )

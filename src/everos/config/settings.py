@@ -1194,6 +1194,18 @@ class RequestLogsSettings(BaseModel):
     hourly thereafter."""
 
 
+class ServerSettings(BaseModel):
+    """``[server]`` — HTTP server configuration.
+
+    Env binding:
+        EVEROS_SERVER__DOCS_ENABLED
+    """
+
+    docs_enabled: bool = True
+    """Enable OpenAPI docs endpoints (/docs, /redoc, /openapi.json).
+    Default true; set false in production to hide API docs."""
+
+
 class PurgeSettings(BaseModel):
     """``[purge]`` — online clearing of a project, an app or the whole root.
 
@@ -1242,6 +1254,7 @@ class Settings(BaseSettings):
     purge: PurgeSettings = PurgeSettings()
     auth: AuthSettings = AuthSettings()
     request_logs: RequestLogsSettings = RequestLogsSettings()
+    server: ServerSettings = ServerSettings()
 
     model_config = SettingsConfigDict(
         env_prefix="EVEROS_",
