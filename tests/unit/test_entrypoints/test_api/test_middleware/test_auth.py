@@ -234,3 +234,97 @@ class TestAuthMiddleware:
         assert request.state.scopes == ["memory:read", "memory:write"]
         call_next.assert_called_once()
         store.touch_key.assert_called_once_with("key_123")
+
+    async def test_bootstrap_token_creates_key_on_first_use(self) -> None:
+        """Bootstrap token creates admin key on first use when no keys exist."""
+        from pydantic import SecretStr
+
+        settings = AuthSettings(
+            enabled=True,
+            legacy_open=False,
+            exempt_paths=["/health"],
+            bootstrap_token=SecretStr("test-bootstrap-token"),
+        )
+        middleware = AuthMiddleware(MagicMock(), settings)
+
+        created_key = MagicMock()
+        created_key.key_id = "key_bootstrap"
+        created_key.prefix = "abcd1234"
+
+        store = AsyncMock()
+        store.key_count.return_value = 0
+        store.create_key.return_value = created_key
+        store.lookup_key.return_value = None
+
+        request = MagicMock()
+        request.url.path = "/api/v2/memory/add"
+        request.headers = {"Authorization": "Bearer test-bootstrap-token"}
+        request.app.state.control_store = store
+        request.state = MagicMock()
+        call_next = AsyncMock(return_value=Response())
+
+        await middleware.dispatch(request, call_next)
+
+        store.create_key.assert_called_once_with(
+            "bootstrap-admin",
+            scopes=["memory:read", "memory:write", "admin"],
+        )
+        assert request.state.api_key_id == "bootstrap"
+        assert request.state.scopes == ["memory:read", "memory:write", "admin"]
+        call_next.assert_called_once()
+
+    async def test_bootstrap_token_rejected_when_keys_exist(self) -> None:
+        """Bootstrap token is rejected when API keys already exist."""
+        from pydantic import SecretStr
+
+        settings = AuthSettings(
+            enabled=True,
+            legacy_open=False,
+            exempt_paths=["/health"],
+            bootstrap_token=SecretStr("test-bootstrap-token"),
+        )
+        middleware = AuthMiddleware(MagicMock(), settings)
+
+        store = AsyncMock()
+        store.key_count.return_value = 1
+        store.lookup_key.return_value = None
+
+        request = MagicMock()
+        request.url.path = "/api/v2/memory/add"
+        request.headers = {"Authorization": "Bearer test-bootstrap-token"}
+        request.app.state.control_store = store
+        call_next = AsyncMock()
+
+        response = await middleware.dispatch(request, call_next)
+
+        assert response.status_code == 401
+        store.create_key.assert_not_called()
+        call_next.assert_not_called()
+
+    async def test_wrong_bootstrap_token_rejected(self) -> None:
+        """Wrong bootstrap token is rejected."""
+        from pydantic import SecretStr
+
+        settings = AuthSettings(
+            enabled=True,
+            legacy_open=False,
+            exempt_paths=["/health"],
+            bootstrap_token=SecretStr("correct-token"),
+        )
+        middleware = AuthMiddleware(MagicMock(), settings)
+
+        store = AsyncMock()
+        store.key_count.return_value = 0
+        store.lookup_key.return_value = None
+
+        request = MagicMock()
+        request.url.path = "/api/v2/memory/add"
+        request.headers = {"Authorization": "Bearer wrong-token"}
+        request.app.state.control_store = store
+        call_next = AsyncMock()
+
+        response = await middleware.dispatch(request, call_next)
+
+        assert response.status_code == 401
+        store.create_key.assert_not_called()
+        call_next.assert_not_called()

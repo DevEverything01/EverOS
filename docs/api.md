@@ -36,8 +36,16 @@ business semantics the raw spec does not carry.
   - [POST /api/v2/memory/delete](#post-apiv2memorydelete)
   - [POST /api/v2/memory/delete_by_ids](#post-apiv2memorydelete_by_ids)
   - [POST /api/v2/memory/purge](#post-apiv2memorypurge)
+  - [POST /api/v2/memory/edit](#post-apiv2memoryedit)
+  - [POST /api/v2/memory/update](#post-apiv2memoryupdate)
+  - [POST /api/v2/memory/feedback](#post-apiv2memoryfeedback)
+  - [POST /api/v2/memory/context](#post-apiv2memorycontext)
+  - [Memory tags endpoints](#memory-tags-endpoints)
   - [POST /api/v2/ome/trigger](#post-apiv2ometrigger)
   - [Knowledge endpoints](#knowledge-endpoints)
+  - [Knowledge base endpoints](#knowledge-base-endpoints)
+  - [Authentication endpoints](#authentication-endpoints)
+  - [Admin endpoints](#admin-endpoints)
 - [OpenAPI spec source](#openapi-spec-source)
 
 ## Overview
@@ -82,9 +90,33 @@ and response bodies are UTF-8 JSON.
 
 ### Authentication
 
-EverOS ships **no built-in authentication**. The server binds to
-`127.0.0.1` by default; place your own gateway or auth layer in front
-before exposing the API on any other interface. See
+EverOS supports **API-key authentication**. When enabled (the default for
+new installations), every `/api/*` request must include a valid API key.
+
+**Providing the key:**
+
+| Method | Example |
+|---|---|
+| `Authorization` header | `Authorization: Bearer eos_a1b2c3d4_...` |
+| `X-Api-Key` header | `X-Api-Key: eos_a1b2c3d4_...` |
+| Session cookie | Set via `POST /api/v2/auth/session` (for the console) |
+
+**Scopes** control what operations a key can perform:
+
+| Scope | Grants |
+|---|---|
+| `memory:read` | `/search`, `/get`, `/context`, `/tasks` |
+| `memory:write` | `/add`, `/flush`, `/edit`, `/update`, `/delete`, `/feedback`, `/tags` |
+| `admin` | Key management, request logs, usage, overview (grants all other scopes) |
+
+**Exempt paths** (no authentication required): `/health`, `/metrics`,
+`/docs`, `/redoc`, `/openapi.json`, `/console`, `/console/*`.
+
+**Legacy open mode:** Existing deployments can set `[auth] legacy_open = true`
+to bypass authentication. See [auth.md](auth.md) for migration details.
+
+The server binds to `127.0.0.1` by default; place your own gateway or auth
+layer in front before exposing the API on any other interface. See
 [../SECURITY.md](../SECURITY.md) for the threat model.
 
 ### Response envelope
@@ -1739,12 +1771,338 @@ Summary of available routes:
 
 ---
 
+### POST /api/v2/memory/edit
+
+Bulk-edit a user's profile items. Requires `memory:write` scope.
+
+#### Request body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `user_id` | `string` | yes | The user whose profile to edit |
+| `operations` | `list[Operation]` | yes | List of add/update/delete operations |
+
+Each operation:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `action` | `"add" \| "update" \| "delete"` | yes | Operation type |
+| `item_id` | `string` | for update/delete | Profile item ID |
+| `type` | `"explicit_info" \| "implicit_info"` | for add | Item type |
+| `data` | `object` | for add/update | `{category, description, evidence?}` |
+
+#### Response body
+
+```json
+{
+  "request_id": "...",
+  "data": {
+    "user_id": "user_001",
+    "version": 2,
+    "applied": 2,
+    "results": [
+      {"op_index": 0, "status": "applied", "item_id": "ei_0001"},
+      {"op_index": 1, "status": "applied", "item_id": "ei_0002"}
+    ]
+  }
+}
+```
+
+---
+
+### POST /api/v2/memory/update
+
+Edit one episode's narrative, summary, or subject. Requires `memory:write` scope.
+
+#### Request body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `memory_type` | `"episode"` | yes | Currently only episodes supported |
+| `memory_id` | `string` | yes | The episode ID |
+| `patch` | `object` | yes | Fields to update: `{summary?, subject?, content?}` |
+
+#### Response body
+
+```json
+{
+  "request_id": "...",
+  "data": {
+    "id": "user_001_ep_20261116_001",
+    "memory_type": "episode",
+    "unchanged": false
+  }
+}
+```
+
+---
+
+### POST /api/v2/memory/feedback
+
+Record that a memory was right or wrong. Requires `memory:write` scope.
+
+Recording is not applying: the memory is not updated, deleted, hidden
+or re-indexed. To act on a rating, call `/edit`, `/update`, or `/delete_by_ids`.
+
+#### Request body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `memory_type` | `string` | yes | Type of memory |
+| `memory_id` | `string` | yes | The memory ID |
+| `rating` | `"positive" \| "negative"` | yes | Thumbs up/down |
+| `reason` | `string` | no | Reason for negative rating |
+| `note` | `string` | no | Additional note |
+| `suggestion` | `string` | no | Suggested correction |
+
+#### Response body
+
+```json
+{
+  "request_id": "...",
+  "data": {
+    "id": 1
+  }
+}
+```
+
+---
+
+### POST /api/v2/memory/context
+
+Multi-round LLM-driven retrieval. Requires `memory:read` scope.
+
+Returns memories, not an answer. Use for multi-hop, temporal and
+cross-conversation questions; use `/search` for everything else.
+
+#### Request body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `query` | `string` | yes | Natural language question |
+| `user_id` | `string` | yes | The user to retrieve context for |
+| `top_k` | `int` | no | Maximum memories to return (default 10) |
+| `app_id` | `string` | no | Scope filter |
+| `project_id` | `string` | no | Scope filter |
+
+#### Response body
+
+```json
+{
+  "request_id": "...",
+  "data": {
+    "context": "The user likes blue...",
+    "memories": [
+      {"id": "...", "kind": "episode", "score": 0.95, "text": "..."}
+    ],
+    "tokens_estimate": 150
+  }
+}
+```
+
+---
+
+### Memory tags endpoints
+
+Manage tags on memories. Requires `memory:write` scope for mutations.
+
+#### POST /api/v2/memory/tags/add
+
+Add tags to a memory.
+
+```json
+// Request
+{"memory_id": "user_001_ep_20261116_001", "tags": ["important", "work"]}
+
+// Response
+{"request_id": "...", "data": {"memory_id": "...", "count": 2}}
+```
+
+#### POST /api/v2/memory/tags/remove
+
+Remove tags from a memory.
+
+```json
+// Request
+{"memory_id": "user_001_ep_20261116_001", "tags": ["work"]}
+
+// Response
+{"request_id": "...", "data": {"memory_id": "...", "removed": 1}}
+```
+
+#### GET /api/v2/memory/tags
+
+List tags for a memory or memories for a tag. Provide exactly one of
+`memory_id` or `tag` as a query parameter.
+
+```bash
+# Get tags for a memory
+curl "http://127.0.0.1:8000/api/v2/memory/tags?memory_id=user_001_ep_20261116_001"
+# Response: {"data": {"memory_id": "...", "tags": ["important"]}}
+
+# Get memory IDs with a tag
+curl "http://127.0.0.1:8000/api/v2/memory/tags?tag=important"
+# Response: {"data": {"tag": "important", "memory_ids": ["...", "..."]}}
+```
+
+---
+
+### Knowledge base endpoints
+
+Multi knowledge base support. The legacy `/api/v2/knowledge/*` endpoints
+continue to work, aliased to the `default` base.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/v2/knowledge_bases` | Create a knowledge base |
+| `GET` | `/api/v2/knowledge_bases` | List knowledge bases |
+| `DELETE` | `/api/v2/knowledge_bases/{kb_id}` | Delete a knowledge base |
+| `POST` | `/api/v2/knowledge_bases/{kb_id}/documents` | Upload a document |
+| `GET` | `/api/v2/knowledge_bases/{kb_id}/documents` | List documents |
+| `GET` | `/api/v2/knowledge_bases/{kb_id}/documents/{doc_id}` | Get document |
+| `GET` | `/api/v2/knowledge_bases/{kb_id}/categories` | List categories |
+| `GET` | `/api/v2/knowledge_bases/{kb_id}/topics/{topic_id}` | Get topic |
+| `POST` | `/api/v2/knowledge_bases/{kb_id}/search` | Search knowledge |
+
+Knowledge base IDs follow the pattern `kb_<hex>`. Document IDs are
+`d_<hex>`. Topic IDs are `d_<hex>_<index>`.
+
+---
+
+### Authentication endpoints
+
+Manage API keys and sessions. All key-management endpoints require `admin` scope.
+
+#### POST /api/v2/auth/keys
+
+Create a new API key.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v2/auth/keys \
+  -H "Authorization: Bearer <admin_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "my-service", "scopes": ["memory:read", "memory:write"]}'
+```
+
+Response includes the full key (only returned once):
+
+```json
+{
+  "key_id": "key_a1b2c3d4",
+  "name": "my-service",
+  "key": "eos_a1b2c3d4_...",
+  "prefix": "a1b2c3d4",
+  "scopes": ["memory:read", "memory:write"],
+  "created_at": "2026-11-16T10:00:00Z"
+}
+```
+
+#### GET /api/v2/auth/keys
+
+List all API keys (without secrets).
+
+#### DELETE /api/v2/auth/keys/{key_id}
+
+Revoke a key (soft delete).
+
+#### POST /api/v2/auth/keys/{key_id}/rotate
+
+Generate a new secret for an existing key. The old secret is immediately
+invalidated.
+
+#### POST /api/v2/auth/session
+
+Set a session cookie for the console. Body: `{"key": "<api_key>"}`.
+
+#### DELETE /api/v2/auth/session
+
+Clear the session cookie (logout).
+
+---
+
+### Admin endpoints
+
+Dashboard and administrative data. All require `admin` scope.
+
+#### GET /api/v2/admin/request-logs
+
+List request logs with filters.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `from` | `datetime` | Start timestamp |
+| `to` | `datetime` | End timestamp |
+| `status` | `int` | HTTP status code filter |
+| `method` | `string` | HTTP method filter |
+| `path` | `string` | Path prefix filter |
+| `api_key_id` | `string` | Filter by API key |
+| `limit` | `int` | Max results (default 100) |
+| `offset` | `int` | Pagination offset |
+
+#### GET /api/v2/admin/request-logs/{id}
+
+Get a single request log by ID.
+
+#### GET /api/v2/admin/usage
+
+Get usage statistics for a time range.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `range` | `string` | One of `24h`, `7d`, `30d` |
+
+Response:
+
+```json
+{
+  "request_id": "...",
+  "data": {
+    "series": [{"bucket": "2026-11-16", "metrics": {"add_calls": 10, ...}}],
+    "totals": {"add_calls": 100, "search_calls": 50, ...},
+    "quota": null
+  }
+}
+```
+
+#### GET /api/v2/admin/overview
+
+Get system overview for the dashboard.
+
+```json
+{
+  "request_id": "...",
+  "data": {
+    "space": "/home/user/.everos",
+    "counts": {"profiles": 10, "episodes": 100, ...},
+    "storage_bytes": null,
+    "model": "gpt-4o",
+    "version": "1.8.0",
+    "auth_mode": "api_key",
+    "quota": null
+  }
+}
+```
+
+#### GET /api/v2/admin/memories
+
+Browse memories without a query vector. Supports `user_id`, `q` (keyword),
+`limit`, and `offset` parameters.
+
+#### GET /api/v2/admin/memories/{id}
+
+Get a single memory by ID.
+
+#### GET /api/v2/admin/agents
+
+List all agents with case and skill counts.
+
+---
+
 ## OpenAPI spec source
 
 This document mirrors the OpenAPI 3.x spec that FastAPI auto-generates
-from the Pydantic DTOs. **The spec is not exposed by default** — the
-`/openapi.json`, `/docs` (Swagger UI), and `/redoc` endpoints only
-mount when the server starts with `ENV=DEV` set.
+from the Pydantic DTOs. The spec is exposed when the server starts with
+`[server] docs_enabled = true` (the default).
 
 ```bash
 ENV=DEV everos server start

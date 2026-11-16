@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **API-key authentication.** EverOS now supports built-in authentication
+  with API keys. Keys have scopes (`memory:read`, `memory:write`, `admin`)
+  that control access to endpoints. Enable with `[auth] enabled = true`
+  (the default for new installations). Existing deployments can set
+  `[auth] legacy_open = true` to keep open access during migration.
+  See `docs/auth.md`.
+
+- **Bundled web console** at `/console`. A single-page application for
+  managing memory, viewing request logs, and administering API keys.
+  Built with vanilla HTML/CSS/JS (no build step, no CDN). Enable with
+  `--console` flag (default). See `docs/console.md`.
+
+- **Request logging and usage metering.** Every API request is logged to
+  `control.db` with timestamp, method, path, status, latency, and API key.
+  Usage counters track add/flush/search/get calls per day. Admin endpoints
+  expose this data: `GET /api/v2/admin/request-logs`,
+  `GET /api/v2/admin/usage?range=24h|7d|30d`.
+
+- **Memory editing endpoints** (Cloud-parity):
+  - `POST /api/v2/memory/edit` — bulk-edit a user's profile items
+  - `POST /api/v2/memory/update` — edit one episode's narrative/summary
+  - `POST /api/v2/memory/feedback` — rate a memory (thumbs up/down)
+  - `POST /api/v2/memory/context` — multi-round LLM-driven retrieval
+
+- **Memory tags.** Add and remove tags on memories via
+  `POST /api/v2/memory/tags/add`, `/tags/remove`, and
+  `GET /api/v2/memory/tags`.
+
+- **Multi knowledge base.** Create and manage multiple knowledge bases
+  via `/api/v2/knowledge_bases`. The legacy `/api/v2/knowledge/*`
+  endpoints continue to work, aliased to the `default` base.
+
+- **Admin endpoints** for the console dashboard:
+  - `GET /api/v2/admin/overview` — system overview
+  - `GET /api/v2/admin/memories` — browse memories without vector search
+  - `GET /api/v2/admin/agents` — list agents with case/skill counts
+
+- **API-key management endpoints** (require `admin` scope):
+  - `POST /api/v2/auth/keys` — create a key (secret returned once)
+  - `GET /api/v2/auth/keys` — list keys (without secrets)
+  - `DELETE /api/v2/auth/keys/{key_id}` — revoke a key
+  - `POST /api/v2/auth/keys/{key_id}/rotate` — rotate a key
+  - `POST /api/v2/auth/session` — set session cookie for the console
+  - `DELETE /api/v2/auth/session` — clear session cookie
+
+- **Control-plane storage.** A new `control.db` SQLite database alongside
+  `system.db` stores API keys, request logs, usage metrics, feedback, and
+  tags.
+
+- **Bootstrap token.** Set `EVEROS_AUTH__BOOTSTRAP_TOKEN` to create the
+  first API key without authentication. The token is invalidated after
+  the first key is created.
+
+- **`scripts/smoke_console.sh`** — integration smoke test for the console
+  and cloud-parity API features.
+
 ## [1.7.0] - 2026-11-13
 
 EverOS 1.7.0 moves onto the everalgo 2026-11 line, all final releases. The

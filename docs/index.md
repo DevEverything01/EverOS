@@ -20,7 +20,9 @@ already know what you want to do and need to know exactly how.
 
 | Doc | Purpose |
 |---|---|
-| [api.md](api.md) | HTTP API v1 reference — endpoints, request / response, error contracts |
+| [api.md](api.md) | HTTP API v2 reference — endpoints, request / response, error contracts |
+| [auth.md](auth.md) | API-key authentication — keys, scopes, bootstrap token, session cookies |
+| [console.md](console.md) | Bundled web console — dashboard, memory bank, logs, keys, playground |
 | [knowledge.md](knowledge.md) | Knowledge base module — upload, search, taxonomy, storage layout |
 | [reflection.md](reflection.md) | Reflection — offline memory consolidation: enable, schedule, storage, triggering |
 | [cli.md](cli.md) | `everos` CLI subcommands + env var conventions |
@@ -53,6 +55,7 @@ specific thing (drain a queue, recover from a stuck row, etc.).
 | [windows.md](windows.md) | Install and run EverOS on Windows — natively or via WSL2 |
 | [windows.zh.md](windows.zh.md) | Chinese mirror of the Windows / WSL2 guide |
 | [github-sync.md](github-sync.md) | Guardrails for refreshing GitHub from internal exports without overwriting GitHub-only workflow files |
+| [FORK.md](FORK.md) | Fork maintenance — syncing with upstream, protected files, fork-specific features |
 | [benchmarks/README.md](../benchmarks/README.md) | Benchmarks (LoCoMo, LongMemEval, EverMemBench, SubtleMemory) — get the data, configure, smoke-test, reproduce |
 
 ## Engineering / Internal
