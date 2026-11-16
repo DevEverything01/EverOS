@@ -305,7 +305,7 @@ async function renderBank() {
         <div class="toolbar" style="margin-bottom:8px">
           <div style="font-weight:700;font-size:15px">Users</div>
         </div>
-        <table><thead><tr><th>User ID</th><th>Profiles</th><th>Episodes</th><th>Last Activity</th></tr></thead>
+        <table><thead><tr><th>User ID</th><th>Facts</th><th>Episodes</th><th>Last Activity</th></tr></thead>
         <tbody>${users.map(u => `<tr style="cursor:pointer" onclick="bankState.user='${esc(u.id)}';bankState.tab='user';renderBank()">
           <td>${esc(u.id)}</td><td>${u.profiles || 0}</td><td>${u.episodes || 0}</td><td>${esc(ago(u.last))}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">No users</td></tr>'}
         </tbody></table>

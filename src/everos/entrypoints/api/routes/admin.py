@@ -293,7 +293,7 @@ async def get_overview(
     day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     counts = OverviewCounts(
-        profiles=stats.profiles,
+        profiles=len(stats.users),
         profile_items=stats.profile_items,
         episodes=stats.episodes,
         cases=stats.cases,
