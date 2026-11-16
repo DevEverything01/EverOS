@@ -174,6 +174,22 @@ class FeedbackResponse(BaseModel):
     id: int
 
 
+class FeedbackItem(BaseModel):
+    """A single feedback record."""
+
+    id: int
+    memory_id: str
+    rating: int
+    comment: str | None = None
+    created_at: str
+
+
+class FeedbackListResponse(BaseModel):
+    """List of feedback for a memory."""
+
+    items: list[FeedbackItem]
+
+
 class ContextMemory(BaseModel):
     """A memory in the context response."""
 

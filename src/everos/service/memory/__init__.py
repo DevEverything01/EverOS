@@ -20,10 +20,15 @@ from __future__ import annotations
 __all__ = [
     "TASK_STATUSES",
     "DeleteResult",
+    "EditOperation",
+    "EditResult",
+    "EpisodePatch",
+    "EpisodeUpdateResult",
     "ExtractionSupervisor",
     "FlushResult",
     "MemorizeResult",
     "MemoryService",
+    "ProfileEditResult",
     "QueueHealth",
     "Queued",
     "TaskItem",
@@ -40,6 +45,13 @@ from everos.core.observability.logging import get_logger
 
 from ._delete import Deleter
 from ._delete import DeleteResult as DeleteResult
+from ._edit import EditOperation as EditOperation
+from ._edit import EditResult as EditResult
+from ._edit import EpisodePatch as EpisodePatch
+from ._edit import EpisodeUpdateResult as EpisodeUpdateResult
+from ._edit import ProfileEditResult as ProfileEditResult
+from ._edit import edit_profile as _edit_profile
+from ._edit import update_episode as _update_episode
 from ._extraction import ExtractionSupervisor as ExtractionSupervisor
 from ._memorize import Memorizer, flush_payload
 from ._models import FlushResult as FlushResult
@@ -397,4 +409,49 @@ class MemoryService:
         """
         return await self._memorizer.run(
             payload, is_final=is_final, defer_extraction=defer_extraction
+        )
+
+    # ── edit use cases ─────────────────────────────────────────────────────
+
+    async def edit_profile(
+        self,
+        *,
+        app_id: str,
+        project_id: str,
+        user_id: str,
+        operations: list[EditOperation],
+    ) -> ProfileEditResult:
+        """Apply a batch of profile item edits to a user's profile.
+
+        Uses the same persistence path the extractor uses, so md and indexes
+        stay consistent and the cascade enqueues changes.
+        """
+        return await _edit_profile(
+            self._stores,
+            app_id=app_id,
+            project_id=project_id,
+            user_id=user_id,
+            operations=operations,
+        )
+
+    async def update_episode(
+        self,
+        *,
+        app_id: str,
+        project_id: str,
+        memory_id: str,
+        patch: EpisodePatch,
+        user_id: str | None = None,
+    ) -> EpisodeUpdateResult:
+        """Update an episode's summary, subject, or content.
+
+        Locates the episode by memory_id, applies the patch, and writes back.
+        """
+        return await _update_episode(
+            self._stores,
+            app_id=app_id,
+            project_id=project_id,
+            memory_id=memory_id,
+            patch=patch,
+            user_id=user_id,
         )

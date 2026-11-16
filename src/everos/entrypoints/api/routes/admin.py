@@ -15,6 +15,7 @@ All endpoints require ``admin`` scope.
 from __future__ import annotations
 
 import datetime as dt
+from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
@@ -73,7 +74,7 @@ async def list_request_logs(
     request_id: RequestIdDep,
     from_ts: Annotated[dt.datetime | None, Query(alias="from")] = None,
     to_ts: Annotated[dt.datetime | None, Query(alias="to")] = None,
-    status: int | None = None,
+    status: str | None = None,
     method: str | None = None,
     path: str | None = None,
     api_key_id: str | None = None,
@@ -84,12 +85,22 @@ async def list_request_logs(
 
     Returns newest first. Use ``from`` and ``to`` for time range filtering.
     """
+    exact_status: int | None = None
+    prefix_status: int | None = None
+    if status:
+        digits = status.strip().lower().removesuffix("xx")
+        if digits.isdigit() and len(digits) == 3:
+            exact_status = int(digits)
+        elif digits.isdigit() and len(digits) == 1:
+            prefix_status = int(digits)
+
     items, total = await store.list_request_logs(
         limit=limit,
         offset=offset,
         from_ts=from_ts,
         to_ts=to_ts,
-        status=status,
+        status=exact_status,
+        status_prefix=prefix_status,
         method=method,
         path=path,
         api_key_id=api_key_id,
@@ -254,6 +265,12 @@ class OverviewResponse(BaseModel):
     version: str
     auth_mode: str
     quota: dict[str, Any] | None = None
+    calls_7d: int = 0
+    calls_today: int = 0
+    search_calls: int = 0
+    users: list[dict[str, Any]] = []
+    activity: list[dict[str, Any]] = []
+    last_write: str | None = None
 
 
 @router.get(
@@ -263,27 +280,49 @@ class OverviewResponse(BaseModel):
 )
 async def get_overview(
     app: ApplicationDep,
+    store: ControlStoreDep,
     request_id: RequestIdDep,
 ) -> SuccessEnvelope[OverviewResponse]:
-    """Get system overview for the dashboard.
-
-    Returns space info, counts, storage size, model, version, auth mode.
-    """
+    """System overview for the dashboard: counts, calls, activity."""
     from everos import __version__
+    from everos.service.control.overview import scan_store
 
-    counts = OverviewCounts()
+    stats = scan_store(Path(str(app._root.root)))
+    now = get_utc_now()
+    week_ago = now - dt.timedelta(days=7)
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    counts = OverviewCounts(
+        profiles=stats.profiles,
+        profile_items=stats.profile_items,
+        episodes=stats.episodes,
+        cases=stats.cases,
+        skills=stats.skills,
+        agents=stats.agents,
+        knowledge_docs=stats.knowledge_docs,
+    )
     auth_mode = "open" if not app._settings.auth.auth_required else "api_key"
+    activity = [
+        {"date": day, **bucket} for day, bucket in sorted(stats.activity.items())
+    ][-45:]
+    last_write = next((u["last"] for u in stats.users if u["last"]), None)
 
     return SuccessEnvelope(
         request_id=request_id,
         data=OverviewResponse(
             space=str(app._root.root),
             counts=counts,
-            storage_bytes=None,
+            storage_bytes=stats.storage_bytes,
             model=app._settings.llm.model,
             version=__version__,
             auth_mode=auth_mode,
             quota=None,
+            calls_7d=await store.count_requests(from_ts=week_ago),
+            calls_today=await store.count_requests(from_ts=day_start),
+            search_calls=await store.count_requests(path_suffix="/search"),
+            users=stats.users,
+            activity=activity,
+            last_write=last_write,
         ),
     )
 

@@ -273,3 +273,49 @@ Files:
   - CSS/JS/fonts served correctly
   - SPA fallback for unknown paths
   - Path traversal blocked
+
+## Run 6: Real persistence and console alignment
+
+### Real persistence (no stubs)
+
+The following endpoints now persist changes to actual storage:
+
+- `POST /api/v2/memory/edit` — Profile editing persists to `user.md` through the
+  same `MarkdownProfileStore` the extractor uses. Add/update/delete operations
+  modify `explicit_info` or `implicit_traits` lists. New items get stable
+  `item_id`s (format `ei_<8hex>` / `it_<8hex>`).
+
+- `POST /api/v2/memory/update` — Episode update rewrites entries in daily
+  `episode-YYYY-MM-DD.md` files. Removes the old entry, appends the modified one
+  to maintain entry marker validity. The cascade enqueues index sync.
+
+- `POST /api/v2/memory/feedback` — Already persisted to `control.db` feedback
+  table. Added `GET /api/v2/memory/feedback?memory_id=` read path.
+
+- `POST /api/v2/memory/context` — Runs hybrid search and assembles a prompt-ready
+  context string from episode summaries and profile facts.
+
+Files:
+- `src/everos/service/memory/_edit.py` — Edit operations (profile, episode)
+- `src/everos/service/memory/__init__.py` — Re-exports and MemoryService methods
+- `src/everos/entrypoints/api/routes/memory_edit.py` — Updated route handlers
+- `src/everos/entrypoints/api/schemas/memory_edit.py` — FeedbackItem, FeedbackListResponse
+- `src/everos/infra/persistence/sqlite/control_store.py` — get_feedback method
+
+### Console alignment
+
+Fixed `app.js` to match the implemented API contracts:
+
+- Profile editing sends `operations: [{action, type, item_id?, data: {...}}]`
+- Episode update sends `{memory_type, memory_id, patch: {...}}`
+- Feedback sends `{memory_type, memory_id, rating: "positive"|"negative"}`
+- User tab reads profile shape: `profile_data.explicit_info` / `implicit_traits`
+- Fixed settings page bug referencing undefined `c` variable
+
+### Tests
+
+- `tests/unit/test_service/test_memory/test_edit.py` — 8 tests for edit operations
+- `tests/fakes/application.py` — Added edit_profile, update_episode to StubMemoryService
+- `tests/unit/test_memory/test_event_ts_pinned.py` — Updated allowed ts count
+- `scripts/smoke_console.sh` — Extended with profile persistence verification,
+  context endpoint test, feedback persistence and retrieval tests

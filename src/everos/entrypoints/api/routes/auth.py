@@ -13,9 +13,6 @@ All key-management endpoints require ``admin`` scope.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
-import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -27,11 +24,15 @@ from everos.entrypoints.api.dependencies import (
     RequestIdDep,
     RequireAdminDep,
 )
+from everos.entrypoints.api.session import (
+    SESSION_COOKIE_NAME,
+    SESSION_MAX_AGE,
+    resolve_secret,
+    sign_session,
+    verify_session,
+)
 
 router = APIRouter(tags=["auth"])
-
-SESSION_COOKIE_NAME = "everos_session"
-SESSION_MAX_AGE = 7 * 24 * 60 * 60
 
 
 class CreateKeyRequest(BaseModel):
@@ -201,45 +202,16 @@ async def rotate_key(
     )
 
 
-DEFAULT_SESSION_SECRET = "everos-default-session-secret-change-me"
-
-
-def _get_session_secret(request: Request) -> str:
-    """Get the session signing secret from the Application settings."""
-    app = request.app.state.application
-    if app._settings.auth.session_secret:
-        return app._settings.auth.session_secret.get_secret_value()
-    return DEFAULT_SESSION_SECRET
-
-
 def session_secret(request: Request) -> str:
     """Dependency for the session signing secret."""
-    return _get_session_secret(request)
+    return resolve_secret(request)
 
 
 SessionSecretDep = Annotated[str, Depends(session_secret)]
 
 
-def _sign_session(api_key_id: str, secret: str) -> str:
-    """Sign a session payload."""
-    payload = json.dumps({"key_id": api_key_id})
-    sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    return f"{payload}:{sig}"
-
-
-def _verify_session(session_value: str, secret: str) -> str | None:
-    """Verify a session cookie and return the key_id, or None if invalid."""
-    if ":" not in session_value:
-        return None
-    payload, signature = session_value.rsplit(":", 1)
-    expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(signature, expected):
-        return None
-    try:
-        data = json.loads(payload)
-        return data.get("key_id")
-    except json.JSONDecodeError:
-        return None
+_sign_session = sign_session
+_verify_session = verify_session
 
 
 @router.post("/auth/session", response_model=SessionResponse)

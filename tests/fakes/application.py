@@ -263,6 +263,48 @@ class StubMemoryService:
             last_loop_error_at=None,
         )
 
+    async def edit_profile(
+        self,
+        *,
+        app_id: str,
+        project_id: str,
+        user_id: str,
+        operations: list[Any],
+    ) -> Any:
+        from everos.service.memory import EditResult, ProfileEditResult
+
+        return ProfileEditResult(
+            user_id=user_id,
+            version=1,
+            applied=len(operations),
+            results=[
+                EditResult(
+                    op_index=i,
+                    status="applied",
+                    item_id=f"ei_{i:08x}",
+                )
+                for i in range(len(operations))
+            ],
+        )
+
+    async def update_episode(
+        self,
+        *,
+        app_id: str,
+        project_id: str,
+        memory_id: str,
+        patch: Any,
+        user_id: str | None = None,
+    ) -> Any:
+        from everos.service.memory import EpisodeUpdateResult
+
+        return EpisodeUpdateResult(
+            id=memory_id,
+            memory_type="episode",
+            unchanged=False,
+            edited_at="2026-11-16T12:00:00Z",
+        )
+
 
 class StubOpsService:
     """Ops double: records lifecycle; health is the real assembly over its fields.

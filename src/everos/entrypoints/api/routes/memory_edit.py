@@ -27,6 +27,8 @@ from everos.entrypoints.api.schemas import (
     ContextMemory,
     ContextRequest,
     ContextResponse,
+    FeedbackItem,
+    FeedbackListResponse,
     FeedbackRequest,
     FeedbackResponse,
     MemoryUpdateRequest,
@@ -52,28 +54,47 @@ async def edit_profile(
 ) -> SuccessEnvelope[ProfileEditResponse]:
     """Bulk-edit a single user's profile items.
 
-    Requires an existing profile — this endpoint edits a profile that extraction
-    has already built. It cannot create the first one.
+    Persists profile item add/update/delete into the user's ``user.md`` through
+    the same repository/port the extractor uses, so md and the LanceDB/sqlite
+    index stay consistent and the cascade enqueues the change.
     """
-    results: list[ProfileEditResult] = []
-    applied = 0
+    from everos.service.memory import EditOperation as SvcEditOp
 
-    for idx, op in enumerate(req.operations):
-        result = ProfileEditResult(
-            op_index=idx,
-            status="applied",
-            item_id=op.item_id if op.action != "add" else f"ei_{idx:04d}",
+    operations = [
+        SvcEditOp(
+            action=op.action,
+            item_type=op.type,
+            category=op.data.category if op.data else None,
+            description=op.data.description if op.data else None,
+            evidence=op.data.evidence if op.data else None,
+            item_id=op.item_id,
+            reason=op.reason,
         )
-        results.append(result)
-        applied += 1
+        for op in req.operations
+    ]
+
+    result = await app.memory.edit_profile(
+        app_id=req.app_id,
+        project_id=req.project_id,
+        user_id=req.user_id,
+        operations=operations,
+    )
 
     return SuccessEnvelope(
         request_id=request_id,
         data=ProfileEditResponse(
-            user_id=req.user_id,
-            version=1,
-            applied=applied,
-            results=results,
+            user_id=result.user_id,
+            version=result.version,
+            applied=result.applied,
+            results=[
+                ProfileEditResult(
+                    op_index=r.op_index,
+                    status=r.status,
+                    item_id=r.item_id,
+                    message=r.message,
+                )
+                for r in result.results
+            ],
         ),
     )
 
@@ -86,14 +107,34 @@ async def update_memory(
 ) -> SuccessEnvelope[MemoryUpdateResponse]:
     """Edit one episode's narrative, summary, or subject.
 
+    Rewrites one episode entry's summary/subject/content in its daily
+    ``episode-YYYY-MM-DD.md``, keeping the entry markers and front-matter
+    counters valid, then enqueues the index sync the same way appends do.
     Re-sending content equal to what is stored returns unchanged=true.
     """
+    from everos.service.memory import EpisodePatch
+
+    patch = EpisodePatch(
+        episode=req.patch.episode,
+        summary=req.patch.summary,
+        subject=req.patch.subject,
+    )
+
+    result = await app.memory.update_episode(
+        app_id=req.app_id,
+        project_id=req.project_id,
+        memory_id=req.memory_id,
+        patch=patch,
+        user_id=req.user_id,
+    )
+
     return SuccessEnvelope(
         request_id=request_id,
         data=MemoryUpdateResponse(
-            id=req.memory_id,
-            memory_type=req.memory_type,
-            unchanged=False,
+            id=result.id,
+            memory_type=result.memory_type,
+            unchanged=result.unchanged,
+            edited_at=result.edited_at,
         ),
     )
 
@@ -118,6 +159,35 @@ async def add_feedback(
     return SuccessEnvelope(
         request_id=request_id,
         data=FeedbackResponse(id=feedback_id),
+    )
+
+
+@router.get("/feedback")
+async def get_feedback(
+    store: ControlStoreDep,
+    request_id: RequestIdDep,
+    memory_id: Annotated[str, Query(min_length=1, max_length=256)],
+) -> SuccessEnvelope[FeedbackListResponse]:
+    """Get all feedback for a memory.
+
+    Returns feedback records for the specified memory, newest first.
+    """
+    from everos.core.utils.datetime import to_iso_format
+
+    rows = await store.get_feedback(memory_id)
+    items = [
+        FeedbackItem(
+            id=row.id,
+            memory_id=row.memory_id,
+            rating=row.rating,
+            comment=row.comment,
+            created_at=to_iso_format(row.created_at) or "",
+        )
+        for row in rows
+    ]
+    return SuccessEnvelope(
+        request_id=request_id,
+        data=FeedbackListResponse(items=items),
     )
 
 

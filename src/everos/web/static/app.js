@@ -24,10 +24,12 @@ const $ = s => document.querySelector(s);
 const view = () => $('#view');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = n => (n ?? 0).toLocaleString('en-US');
+const unwrap = r => (r && typeof r === 'object' && 'data' in r ? r.data : r);
 
 async function api(path, opts = {}) {
   const r = await fetch(path, {
     credentials: 'include',
+    cache: 'no-store',
     headers: { 'Accept': 'application/json', ...opts.headers },
     ...opts
   });
@@ -169,12 +171,15 @@ function barChart(points, opts = {}) {
 
 /* ---------- dashboard ---------- */
 async function renderDashboard() {
-  const d = await api('/api/v2/admin/overview');
-  const logsData = await api('/api/v2/admin/request-logs?limit=400');
+  const d = unwrap(await api('/api/v2/admin/overview'));
+  const logsData = unwrap(await api('/api/v2/admin/request-logs?limit=400'));
   const logs = logsData.items || [];
   const hourly = bucketByHour(logs);
   const c = d.counts || {};
-  const sys = d.system || {};
+  const sys = {
+    data_mb: ((d.storage_bytes || 0) / 1048576).toFixed(1),
+    store_files: (c.profile_items || 0) + (c.episodes || 0) + (c.cases || 0) + (c.knowledge_docs || 0)
+  };
 
   view().innerHTML = `
   <div class="head">
@@ -272,7 +277,7 @@ function bucketByDay(items) {
 const bankState = { tab: 'overview', user: '', q: '', agent: null, limit: 30 };
 
 async function renderBank() {
-  const d = await api('/api/v2/admin/overview');
+  const d = unwrap(await api('/api/v2/admin/overview'));
   const c = d.counts || {};
   const users = d.users || [];
   if (!bankState.user && users.length) bankState.user = users[0].id;
@@ -314,10 +319,16 @@ async function renderBank() {
   }
 
   if (bankState.tab === 'user') {
-    const profData = await api('/api/v2/memory/get?user_id=' + encodeURIComponent(bankState.user));
+    const [profData, epData] = await Promise.all([
+      apiPost('/api/v2/memory/get', { user_id: bankState.user, memory_type: 'profile' }),
+      apiPost('/api/v2/memory/get', { user_id: bankState.user, memory_type: 'episode', page_size: 100 })
+    ]);
     const prof = profData.data?.profiles?.[0] || {};
-    const items = prof.items || [];
-    const episodes = profData.data?.episodes || [];
+    const profD = prof.profile_data || {};
+    const explicitItems = (profD.explicit_info || []).map(i => ({ ...i, item_type: 'explicit_info' }));
+    const implicitItems = (profD.implicit_traits || []).map(i => ({ ...i, item_type: 'implicit_traits', category: i.trait }));
+    const items = [...explicitItems, ...implicitItems];
+    const episodes = epData.data?.episodes || [];
 
     view().innerHTML = tabs + `
       <div class="mem">
@@ -337,14 +348,14 @@ async function renderBank() {
               <button class="select" onclick="showAddProfile()">+ Add</button>
             </div>
             <div id="profileItems">
-              ${items.map(i => `<div class="profile-item" data-id="${esc(i.item_id || '')}">
+              ${items.map(i => `<div class="profile-item" data-id="${esc(i.item_id || '')}" data-type="${esc(i.item_type || 'explicit_info')}">
                 <div class="pi-content">
                   <span class="tagline">${esc(i.category || 'General')}</span>
                   <div class="pi-desc">${esc(i.description)}</div>
                 </div>
                 <div class="pi-actions">
-                  <button class="pi-btn" onclick="showEditProfile('${esc(i.item_id)}', '${esc(i.category)}', '${esc(i.description.replace(/'/g, "\\'"))}')">Edit</button>
-                  <button class="pi-btn del" onclick="confirmDeleteProfile('${esc(i.item_id)}')">Delete</button>
+                  <button class="pi-btn" onclick="showEditProfile('${esc(i.item_id)}', '${esc(i.category)}', '${esc(i.description.replace(/'/g, "\\'"))}', '${esc(i.item_type || 'explicit_info')}')">Edit</button>
+                  <button class="pi-btn del" onclick="confirmDeleteProfile('${esc(i.item_id)}', '${esc(i.item_type || 'explicit_info')}')">Delete</button>
                 </div>
               </div>`).join('') || '<div class="empty">No profile facts</div>'}
             </div>
@@ -386,7 +397,7 @@ async function renderBank() {
   }
 
   if (bankState.tab === 'agent') {
-    const agentsData = await api('/api/v2/admin/agents');
+    const agentsData = unwrap(await api('/api/v2/admin/agents'));
     const agents = agentsData.agents || [];
     if (!bankState.agent && agents.length) bankState.agent = agents[0].id;
 
@@ -437,8 +448,11 @@ window.showAddProfile = function() {
       try {
         await apiPost('/api/v2/memory/edit', {
           user_id: bankState.user,
-          op: 'add',
-          items: [{ category: cat || 'General', description: desc }]
+          operations: [{
+            action: 'add',
+            type: 'explicit_info',
+            data: { category: cat || 'General', description: desc }
+          }]
         });
         hideModal();
         renderBank();
@@ -447,7 +461,7 @@ window.showAddProfile = function() {
   ]);
 };
 
-window.showEditProfile = function(itemId, category, description) {
+window.showEditProfile = function(itemId, category, description, itemType) {
   showModal('Edit Profile Fact', `
     <div style="margin-bottom:12px">
       <label style="font-size:12px;color:#6b6660">Category</label>
@@ -466,8 +480,12 @@ window.showEditProfile = function(itemId, category, description) {
       try {
         await apiPost('/api/v2/memory/edit', {
           user_id: bankState.user,
-          op: 'update',
-          items: [{ item_id: itemId, category: cat || 'General', description: desc }]
+          operations: [{
+            action: 'update',
+            type: itemType || 'explicit_info',
+            item_id: itemId,
+            data: { category: cat || 'General', description: desc }
+          }]
         });
         hideModal();
         renderBank();
@@ -476,15 +494,18 @@ window.showEditProfile = function(itemId, category, description) {
   ]);
 };
 
-window.confirmDeleteProfile = function(itemId) {
+window.confirmDeleteProfile = function(itemId, itemType) {
   showModal('Delete Profile Fact', '<p>Are you sure you want to delete this profile fact?</p>', [
     { label: 'Cancel', action: 'cancel' },
     { label: 'Delete', action: 'delete', primary: true, onClick: async () => {
       try {
         await apiPost('/api/v2/memory/edit', {
           user_id: bankState.user,
-          op: 'delete',
-          items: [{ item_id: itemId }]
+          operations: [{
+            action: 'delete',
+            type: itemType || 'explicit_info',
+            item_id: itemId
+          }]
         });
         hideModal();
         renderBank();
@@ -511,9 +532,12 @@ window.showEditEpisode = function(episodeId) {
       const subject = $('#epSubject').value.trim();
       try {
         await apiPost('/api/v2/memory/update', {
+          memory_type: 'episode',
           memory_id: episodeId,
-          summary: summary || undefined,
-          subject: subject || undefined
+          patch: {
+            summary: summary || undefined,
+            subject: subject || undefined
+          }
         });
         hideModal();
         renderBank();
@@ -524,7 +548,11 @@ window.showEditEpisode = function(episodeId) {
 
 window.showFeedback = async function(memoryId, rating) {
   try {
-    await apiPost('/api/v2/memory/feedback', { memory_id: memoryId, rating });
+    await apiPost('/api/v2/memory/feedback', {
+      memory_type: 'episode',
+      memory_id: memoryId,
+      rating: rating > 0 ? 'positive' : 'negative'
+    });
     alert(rating > 0 ? 'Marked as helpful!' : 'Marked as not helpful');
   } catch (e) { alert('Failed: ' + e.message); }
 };
@@ -533,7 +561,7 @@ window.showFeedback = async function(memoryId, rating) {
 const pgState = { q: '', user: '', mode: 'search', res: null };
 
 async function renderPlayground() {
-  const d = await api('/api/v2/admin/overview');
+  const d = unwrap(await api('/api/v2/admin/overview'));
   const users = d.users || [];
   if (!pgState.user && users.length) pgState.user = users[0].id;
 
@@ -659,7 +687,7 @@ async function renderLogs() {
   if (logState.status) qs.set('status', logState.status);
   if (logState.q) qs.set('path', logState.q);
 
-  const d = await api('/api/v2/admin/request-logs?' + qs.toString());
+  const d = unwrap(await api('/api/v2/admin/request-logs?' + qs.toString()));
   const logs = d.items || [];
 
   view().innerHTML = `
@@ -886,8 +914,12 @@ window.deleteKB = function(kbId) {
 
 /* ---------- settings ---------- */
 async function renderSettings() {
-  const d = await api('/api/v2/admin/overview');
-  const sys = d.system || {};
+  const d = unwrap(await api('/api/v2/admin/overview'));
+  const c = d.counts || {};
+  const sys = {
+    data_mb: ((d.storage_bytes || 0) / 1048576).toFixed(1),
+    store_files: (c.profile_items || 0) + (c.episodes || 0) + (c.cases || 0) + (c.knowledge_docs || 0)
+  };
 
   view().innerHTML = `
     <div class="head"><div><h1 style="font-size:20px">Settings</h1>
@@ -952,7 +984,7 @@ async function route() {
 async function init() {
   paintIcons();
   try {
-    const d = await api('/api/v2/admin/overview');
+    const d = unwrap(await api('/api/v2/admin/overview'));
     isAuthenticated = true;
     $('#logoutBtn').style.display = 'block';
     $('#userVersion').textContent = 'v' + (d.version || d.system?.version || '1.7.0');

@@ -212,6 +212,17 @@ class ControlStore:
             )
             return result.scalar_one_or_none()
 
+    async def get_key_by_id(self, key_id: str) -> ApiKey | None:
+        """Return a non-revoked key row by ``key_id`` (used by session auth)."""
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(ApiKey).where(
+                    ApiKey.key_id == key_id,
+                    ApiKey.revoked_at.is_(None),
+                )
+            )
+            return result.scalar_one_or_none()
+
     async def list_keys(self, include_revoked: bool = False) -> Sequence[KeyInfo]:
         """List all API keys (without secrets)."""
         async with self._session_factory() as session:
@@ -345,6 +356,7 @@ class ControlStore:
         from_ts: dt.datetime | None = None,
         to_ts: dt.datetime | None = None,
         status: int | None = None,
+        status_prefix: int | None = None,
         method: str | None = None,
         path: str | None = None,
         api_key_id: str | None = None,
@@ -363,6 +375,15 @@ class ControlStore:
             if status is not None:
                 stmt = stmt.where(RequestLog.status == status)
                 count_stmt = count_stmt.where(RequestLog.status == status)
+            if status_prefix is not None:
+                # "2" / "4xx" style filters: the whole hundred block.
+                lower = status_prefix * 100
+                stmt = stmt.where(
+                    RequestLog.status >= lower, RequestLog.status < lower + 100
+                )
+                count_stmt = count_stmt.where(
+                    RequestLog.status >= lower, RequestLog.status < lower + 100
+                )
             if method is not None:
                 stmt = stmt.where(RequestLog.method == method)
                 count_stmt = count_stmt.where(RequestLog.method == method)
@@ -390,6 +411,22 @@ class ControlStore:
                 select(RequestLog).where(RequestLog.id == log_id)
             )
             return result.scalar_one_or_none()
+
+    async def count_requests(
+        self,
+        *,
+        from_ts: dt.datetime | None = None,
+        path_suffix: str | None = None,
+    ) -> int:
+        """Count logged requests, optionally since ``from_ts`` and by suffix."""
+        async with self._session_factory() as session:
+            stmt = select(func.count()).select_from(RequestLog)
+            if from_ts is not None:
+                stmt = stmt.where(RequestLog.ts >= from_ts)
+            if path_suffix is not None:
+                stmt = stmt.where(RequestLog.path.like(f"%{path_suffix}"))
+            result = await session.execute(stmt)
+            return result.scalar() or 0
 
     async def prune_request_logs(self, retain_days: int) -> int:
         """Delete request logs older than retain_days. Returns count deleted."""
@@ -453,6 +490,16 @@ class ControlStore:
             await session.commit()
             await session.refresh(row)
             return row.id  # type: ignore[return-value]
+
+    async def get_feedback(self, memory_id: str) -> Sequence[Feedback]:
+        """Get all feedback for a memory, newest first."""
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(Feedback)
+                .where(Feedback.memory_id == memory_id)
+                .order_by(Feedback.created_at.desc())
+            )
+            return result.scalars().all()
 
     # ── Tags ────────────────────────────────────────────────────────────────
 

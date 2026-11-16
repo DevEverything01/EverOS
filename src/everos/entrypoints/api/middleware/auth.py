@@ -31,6 +31,11 @@ from starlette.responses import JSONResponse, Response
 
 from everos.config import AuthSettings
 from everos.core.observability.logging import get_logger
+from everos.entrypoints.api.session import (
+    SESSION_COOKIE_NAME,
+    resolve_secret,
+    verify_session,
+)
 
 if TYPE_CHECKING:
     from everos.service.control import ControlStore
@@ -48,6 +53,11 @@ def _error_response(code: str, message: str, status: int = 401) -> JSONResponse:
         {"error": {"code": code, "message": message}},
         status_code=status,
     )
+
+
+def _is_session_path(path: str) -> bool:
+    """True for the console session endpoints, which validate their own body."""
+    return path.rstrip("/").endswith("/auth/session")
 
 
 def _is_exempt(path: str, exempt_paths: list[str]) -> bool:
@@ -112,6 +122,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not path.startswith("/api/"):
             return await call_next(request)
 
+        # Session endpoints authenticate from the request body themselves.
+        if _is_session_path(path):
+            return await call_next(request)
+
         store = self._get_store(request)
         if store is None:
             return _error_response(
@@ -122,6 +136,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         token = _extract_token(request)
         if token is None:
+            session_key = await self._session_key(request, store)
+            if session_key is not None:
+                return await call_next(request)
             return _error_response(
                 "unauthorized",
                 "Missing API key. Use Authorization: Bearer <key> or X-Api-Key.",
@@ -144,6 +161,25 @@ class AuthMiddleware(BaseHTTPMiddleware):
         await store.touch_key(api_key.key_id)
 
         return await call_next(request)
+
+    async def _session_key(self, request: Request, store: ControlStore) -> str | None:
+        """Authenticate a console session cookie; attach state when valid."""
+        raw = request.cookies.get(SESSION_COOKIE_NAME)
+        if not raw:
+            return None
+        key_id = verify_session(raw, resolve_secret(request))
+        if key_id is None:
+            return None
+        api_key = await store.get_key_by_id(key_id)
+        if api_key is None:
+            logger.warning(
+                "auth_rejected", path=request.url.path, reason="session_key_revoked"
+            )
+            return None
+        request.state.api_key_id = api_key.key_id
+        request.state.scopes = json.loads(api_key.scopes)
+        await store.touch_key(api_key.key_id)
+        return api_key.key_id
 
     async def _try_bootstrap(
         self, token: str, request: Request, store: ControlStore

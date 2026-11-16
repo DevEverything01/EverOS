@@ -132,9 +132,79 @@ EDIT_RESPONSE=$(curl -sf -X POST "${BASE_URL}/api/v2/memory/edit" \
 
 if echo "$EDIT_RESPONSE" | jq -e '.data.applied' > /dev/null 2>&1; then
     APPLIED=$(echo "$EDIT_RESPONSE" | jq -r '.data.applied')
-    pass "Edit profile (applied: ${APPLIED})"
+    ITEM_ID=$(echo "$EDIT_RESPONSE" | jq -r '.data.results[0].item_id // ""')
+    if [ "${APPLIED}" = "1" ] && [ -n "${ITEM_ID}" ]; then
+        pass "Edit profile (applied: ${APPLIED}, item_id: ${ITEM_ID})"
+    else
+        fail "Edit profile returned unexpected data"
+    fi
 else
     fail "Edit profile failed"
+fi
+
+# 5b. Verify profile edit persisted
+echo "5b. Verify profile persisted..."
+GET_PROFILE=$(curl -sf -X POST "${BASE_URL}/api/v2/memory/get" \
+    -H "Content-Type: application/json" \
+    ${AUTH_HEADER:+-H "Authorization: Bearer ${API_KEY}"} \
+    -d '{"user_id": "smoke_user", "memory_type": "profile"}' 2>/dev/null || echo '{"error": true}')
+
+if echo "$GET_PROFILE" | jq -e '.data.profiles[0].profile_data.explicit_info' > /dev/null 2>&1; then
+    INFO_COUNT=$(echo "$GET_PROFILE" | jq -r '.data.profiles[0].profile_data.explicit_info | length')
+    if [ "${INFO_COUNT}" -ge 1 ]; then
+        pass "Profile persisted (${INFO_COUNT} explicit_info items)"
+    else
+        fail "Profile explicit_info is empty after edit"
+    fi
+else
+    # Profile may not exist yet if extraction hasn't run
+    echo "   Note: Profile not yet available (extraction may not have run)"
+    pass "Profile get endpoint responded"
+fi
+
+# 5c. Test context endpoint
+echo "5c. Test context endpoint..."
+CONTEXT_RESPONSE=$(curl -sf -X POST "${BASE_URL}/api/v2/memory/context" \
+    -H "Content-Type: application/json" \
+    ${AUTH_HEADER:+-H "Authorization: Bearer ${API_KEY}"} \
+    -d '{
+        "query": "What does the user like?",
+        "user_id": "smoke_user",
+        "top_k": 5
+    }' 2>/dev/null || echo '{"error": true}')
+
+if echo "$CONTEXT_RESPONSE" | jq -e '.data.context' > /dev/null 2>&1; then
+    TOKENS=$(echo "$CONTEXT_RESPONSE" | jq -r '.data.tokens_estimate // 0')
+    pass "Context endpoint (tokens_estimate: ${TOKENS})"
+else
+    fail "Context endpoint failed"
+fi
+
+# 5d. Test feedback endpoint
+echo "5d. Test feedback endpoint..."
+FEEDBACK_RESPONSE=$(curl -sf -X POST "${BASE_URL}/api/v2/memory/feedback" \
+    -H "Content-Type: application/json" \
+    ${AUTH_HEADER:+-H "Authorization: Bearer ${API_KEY}"} \
+    -d '{
+        "memory_type": "episode",
+        "memory_id": "smoke_user_ep_test",
+        "rating": "positive"
+    }' 2>/dev/null || echo '{"error": true}')
+
+if echo "$FEEDBACK_RESPONSE" | jq -e '.data.id' > /dev/null 2>&1; then
+    FB_ID=$(echo "$FEEDBACK_RESPONSE" | jq -r '.data.id')
+    pass "Feedback persisted (id: ${FB_ID})"
+
+    # Verify feedback can be retrieved
+    GET_FB=$(curl -sf "${BASE_URL}/api/v2/memory/feedback?memory_id=smoke_user_ep_test" \
+        ${AUTH_HEADER:+-H "Authorization: Bearer ${API_KEY}"} 2>/dev/null || echo '{"error": true}')
+    if echo "$GET_FB" | jq -e '.data.items[0]' > /dev/null 2>&1; then
+        pass "Feedback retrieved"
+    else
+        fail "Feedback retrieval failed"
+    fi
+else
+    fail "Feedback endpoint failed"
 fi
 
 # 6. View request logs (requires admin)

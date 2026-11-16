@@ -1176,6 +1176,20 @@ class AuthSettings(BaseModel):
     """Paths that do not require authentication. Prefix match: ``/console``
     exempts ``/console``, ``/console/``, ``/console/assets/foo.js``, etc."""
 
+    @model_validator(mode="after")
+    def _bootstrap_env_alias(self) -> AuthSettings:
+        """Honour the short ``EVEROS_BOOTSTRAP_TOKEN`` env var.
+
+        The documented binding is ``EVEROS_AUTH__BOOTSTRAP_TOKEN``; the short
+        form is the one operators actually export, so accept it when the
+        nested variable is absent.
+        """
+        if self.bootstrap_token is None:
+            alias = os.environ.get("EVEROS_BOOTSTRAP_TOKEN")
+            if alias:
+                self.bootstrap_token = SecretStr(alias)
+        return self
+
     @property
     def auth_required(self) -> bool:
         """True when requests must authenticate (enabled and not legacy_open)."""

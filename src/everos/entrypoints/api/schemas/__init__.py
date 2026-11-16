@@ -63,6 +63,8 @@ from .memorize import ToolFunctionDTO as ToolFunctionDTO
 from .memory_edit import ContextMemory as ContextMemory
 from .memory_edit import ContextRequest as ContextRequest
 from .memory_edit import ContextResponse as ContextResponse
+from .memory_edit import FeedbackItem as FeedbackItem
+from .memory_edit import FeedbackListResponse as FeedbackListResponse
 from .memory_edit import FeedbackRequest as FeedbackRequest
 from .memory_edit import FeedbackResponse as FeedbackResponse
 from .memory_edit import MemoryPatch as MemoryPatch
@@ -113,6 +115,8 @@ __all__ = [
     "DocumentPatchResponse",
     "ErrorDetail",
     "ErrorResponse",
+    "FeedbackItem",
+    "FeedbackListResponse",
     "FeedbackRequest",
     "FeedbackResponse",
     "FlushResponseData",

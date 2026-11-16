@@ -394,7 +394,7 @@
           "memory"
         ],
         "summary": "Edit Profile",
-        "description": "Bulk-edit a single user's profile items.\n\nRequires an existing profile — this endpoint edits a profile that extraction\nhas already built. It cannot create the first one.",
+        "description": "Bulk-edit a single user's profile items.\n\nPersists profile item add/update/delete into the user's ``user.md`` through\nthe same repository/port the extractor uses, so md and the LanceDB/sqlite\nindex stay consistent and the cascade enqueues the change.",
         "operationId": "edit_profile_api_v1_memory_edit_post",
         "requestBody": {
           "content": {
@@ -436,7 +436,7 @@
           "memory"
         ],
         "summary": "Update Memory",
-        "description": "Edit one episode's narrative, summary, or subject.\n\nRe-sending content equal to what is stored returns unchanged=true.",
+        "description": "Edit one episode's narrative, summary, or subject.\n\nRewrites one episode entry's summary/subject/content in its daily\n``episode-YYYY-MM-DD.md``, keeping the entry markers and front-matter\ncounters valid, then enqueues the index sync the same way appends do.\nRe-sending content equal to what is stored returns unchanged=true.",
         "operationId": "update_memory_api_v1_memory_update_post",
         "requestBody": {
           "content": {
@@ -481,14 +481,14 @@
         "description": "Record that a memory was right or wrong.\n\nRecording is not applying: the memory is not updated, deleted, hidden\nor re-indexed. To act on a rating, call update, delete_by_ids or edit.",
         "operationId": "add_feedback_api_v1_memory_feedback_post",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/FeedbackRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -497,6 +497,49 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessEnvelope_FeedbackResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Get Feedback",
+        "description": "Get all feedback for a memory.\n\nReturns feedback records for the specified memory, newest first.",
+        "operationId": "get_feedback_api_v1_memory_feedback_get",
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "title": "Memory Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_FeedbackListResponse_"
                 }
               }
             }
@@ -2536,7 +2579,7 @@
           "memory"
         ],
         "summary": "Edit Profile",
-        "description": "Bulk-edit a single user's profile items.\n\nRequires an existing profile — this endpoint edits a profile that extraction\nhas already built. It cannot create the first one.",
+        "description": "Bulk-edit a single user's profile items.\n\nPersists profile item add/update/delete into the user's ``user.md`` through\nthe same repository/port the extractor uses, so md and the LanceDB/sqlite\nindex stay consistent and the cascade enqueues the change.",
         "operationId": "edit_profile_api_v2_memory_edit_post",
         "requestBody": {
           "content": {
@@ -2578,7 +2621,7 @@
           "memory"
         ],
         "summary": "Update Memory",
-        "description": "Edit one episode's narrative, summary, or subject.\n\nRe-sending content equal to what is stored returns unchanged=true.",
+        "description": "Edit one episode's narrative, summary, or subject.\n\nRewrites one episode entry's summary/subject/content in its daily\n``episode-YYYY-MM-DD.md``, keeping the entry markers and front-matter\ncounters valid, then enqueues the index sync the same way appends do.\nRe-sending content equal to what is stored returns unchanged=true.",
         "operationId": "update_memory_api_v2_memory_update_post",
         "requestBody": {
           "content": {
@@ -2623,14 +2666,14 @@
         "description": "Record that a memory was right or wrong.\n\nRecording is not applying: the memory is not updated, deleted, hidden\nor re-indexed. To act on a rating, call update, delete_by_ids or edit.",
         "operationId": "add_feedback_api_v2_memory_feedback_post",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/FeedbackRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -2639,6 +2682,49 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessEnvelope_FeedbackResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Get Feedback",
+        "description": "Get all feedback for a memory.\n\nReturns feedback records for the specified memory, newest first.",
+        "operationId": "get_feedback_api_v2_memory_feedback_get",
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "title": "Memory Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_FeedbackListResponse_"
                 }
               }
             }
@@ -4596,7 +4682,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "type": "string"
                 },
                 {
                   "type": "null"
@@ -4794,7 +4880,7 @@
           "admin"
         ],
         "summary": "Get Overview",
-        "description": "Get system overview for the dashboard.\n\nReturns space info, counts, storage size, model, version, auth mode.",
+        "description": "System overview for the dashboard: counts, calls, activity.",
         "operationId": "get_overview_api_v2_admin_overview_get",
         "responses": {
           "200": {
@@ -6336,6 +6422,63 @@
         ],
         "title": "ErrorResponse",
         "description": "Canonical error envelope returned by all error handlers."
+      },
+      "FeedbackItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "memory_id": {
+            "type": "string",
+            "title": "Memory Id"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "memory_id",
+          "rating",
+          "created_at"
+        ],
+        "title": "FeedbackItem",
+        "description": "A single feedback record."
+      },
+      "FeedbackListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "FeedbackListResponse",
+        "description": "List of feedback for a memory."
       },
       "FeedbackRequest": {
         "properties": {
@@ -8385,6 +8528,50 @@
               }
             ],
             "title": "Quota"
+          },
+          "calls_7d": {
+            "type": "integer",
+            "title": "Calls 7D",
+            "default": 0
+          },
+          "calls_today": {
+            "type": "integer",
+            "title": "Calls Today",
+            "default": 0
+          },
+          "search_calls": {
+            "type": "integer",
+            "title": "Search Calls",
+            "default": 0
+          },
+          "users": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Users",
+            "default": []
+          },
+          "activity": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Activity",
+            "default": []
+          },
+          "last_write": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Write"
           }
         },
         "type": "object",
@@ -9963,6 +10150,23 @@
           "data"
         ],
         "title": "SuccessEnvelope[DocumentPatchResponse]"
+      },
+      "SuccessEnvelope_FeedbackListResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FeedbackListResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[FeedbackListResponse]"
       },
       "SuccessEnvelope_FeedbackResponse_": {
         "properties": {

@@ -21,7 +21,7 @@ ALLOWED: dict[str, int] = {
     "service/purge/_gate.py": 1,  # getattr(event, "ts"): verdict and bind
     "service/purge/_runner.py": 1,  # a stored event's "ts": the wait
     "memory/search/filters.py": 3,  # a filter field kind named "ts", not Event.ts
-    "infra/persistence/sqlite/control_store.py": 7,  # request log timestamp column
+    "infra/persistence/sqlite/control_store.py": 8,  # request log + schema version ts
     "entrypoints/api/routes/admin.py": 4,  # request log "ts" field serialization
 }
 """Reviewed uses per file (path under src/everos -> count)."""
