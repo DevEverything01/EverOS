@@ -43,6 +43,11 @@ EXEMPT: dict[tuple[str, str], str] = {
     ("POST", "/memory/purge/confirm"): "the purge itself",
     ("POST", "/ome/trigger"): "names no app / project (known gap G1)",
     ("POST", "/cascade/quiesce"): "names no app / project",
+    ("POST", "/auth/keys"): "control plane, not memory data",
+    ("DELETE", "/auth/keys/{key_id}"): "control plane, not memory data",
+    ("POST", "/auth/keys/{key_id}/rotate"): "control plane, not memory data",
+    ("POST", "/auth/session"): "control plane, not memory data",
+    ("DELETE", "/auth/session"): "control plane, not memory data",
 }
 
 

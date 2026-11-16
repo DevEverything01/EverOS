@@ -31,5 +31,6 @@ async def test_the_lifespan_starts_and_closes_the_application(tmp_path: Path) ->
         assert app.state.application is application
         assert "memory.aclose" not in events
 
-    assert events[-1] == "sqlite.dispose"
+    assert events[-1] == "control.dispose"
+    assert "sqlite.dispose" in events
     assert "memory.aclose" in events

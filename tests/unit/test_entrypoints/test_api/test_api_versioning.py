@@ -23,10 +23,18 @@ from tests.fakes import make_application
 _V1 = "/api/v1/"
 _V2 = "/api/v2/"
 
+# Routes that are v2-only (no v1 legacy alias needed)
+_V2_ONLY_PREFIXES = ("/api/v2/auth/",)
+
 
 def _openapi_paths() -> dict[str, dict]:
     app = create_app(application=make_application())
     return app.openapi()["paths"]
+
+
+def _is_v2_only(path: str) -> bool:
+    """Check if a v2 path is intentionally v2-only (no v1 twin)."""
+    return any(path.startswith(prefix) for prefix in _V2_ONLY_PREFIXES)
 
 
 def test_every_v1_route_has_identical_v2_twin() -> None:
@@ -50,7 +58,7 @@ def test_every_v1_route_has_identical_v2_twin() -> None:
 
 def test_every_v2_route_has_v1_twin() -> None:
     paths = _openapi_paths()
-    v2 = {p for p in paths if p.startswith(_V2)}
+    v2 = {p for p in paths if p.startswith(_V2) and not _is_v2_only(p)}
     assert v2, "expected at least one /api/v2 route"
 
     for path in v2:

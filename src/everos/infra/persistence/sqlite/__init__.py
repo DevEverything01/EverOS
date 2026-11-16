@@ -60,6 +60,9 @@ from ._tables import MemorizeInbox as MemorizeInbox
 from ._tables import PurgeJob as PurgeJob
 from ._tables import ReflectionReport as ReflectionReport
 from ._tables import UnprocessedBuffer as UnprocessedBuffer
+from .control_store import ControlStore as ControlStore
+from .control_store import CreatedKey as CreatedKey
+from .control_store import KeyInfo as KeyInfo
 from .knowledge_catalog import SqliteKnowledgeCatalog as SqliteKnowledgeCatalog
 from .repositories import SqliteRepos as SqliteRepos
 from .sqlite_manager import SqliteDatabase as SqliteDatabase
@@ -77,10 +80,13 @@ __all__ = [
     "Cluster",
     "ClusterMember",
     "ClusterRepo",
+    "ControlStore",
     "ConversationStatus",
+    "CreatedKey",
     "DocumentListPage",
     "DocumentUpsertPayload",
     "Field",
+    "KeyInfo",
     "KnowledgeDocumentRepo",
     "KnowledgeDocumentRow",
     "KnowledgeTopicRow",

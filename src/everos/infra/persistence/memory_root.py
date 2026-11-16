@@ -206,6 +206,15 @@ class MemoryRoot:
         return self.sqlite_dir / "system.db"
 
     @property
+    def control_db(self) -> Path:
+        """``<root>/.index/sqlite/control.db`` — SQLite DB for the
+        control plane: API keys, request logs, usage metrics, feedback, tags.
+        Separate from system.db so the control plane can be added or
+        removed without migrating memory-domain tables.
+        """
+        return self.sqlite_dir / "control.db"
+
+    @property
     def ome_db(self) -> Path:
         """``<root>/.index/sqlite/ome.db`` — SQLite DB backing the Offline
         Memory Engine's own state: run records, counter store, idle store.

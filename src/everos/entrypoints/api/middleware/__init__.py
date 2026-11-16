@@ -1,4 +1,4 @@
-"""The HTTP API layer's middleware (CORS defaults, profiling, metrics, request id).
+"""The HTTP API layer's middleware (CORS, profiling, metrics, request id, auth).
 
 External usage::
 
@@ -7,11 +7,16 @@ External usage::
         DEFAULT_CORS_ALLOW_HEADERS,
         DEFAULT_CORS_ALLOW_METHODS,
         DEFAULT_CORS_ORIGINS,
+        AuthMiddleware,
         ProfileMiddleware,
         PrometheusMiddleware,
+        require_scope,
     )
 """
 
+from .auth import AuthMiddleware as AuthMiddleware
+from .auth import require_any_scope as require_any_scope
+from .auth import require_scope as require_scope
 from .cors import DEFAULT_CORS_ALLOW_CREDENTIALS as DEFAULT_CORS_ALLOW_CREDENTIALS
 from .cors import DEFAULT_CORS_ALLOW_HEADERS as DEFAULT_CORS_ALLOW_HEADERS
 from .cors import DEFAULT_CORS_ALLOW_METHODS as DEFAULT_CORS_ALLOW_METHODS
@@ -26,8 +31,11 @@ __all__ = [
     "DEFAULT_CORS_ALLOW_HEADERS",
     "DEFAULT_CORS_ALLOW_METHODS",
     "DEFAULT_CORS_ORIGINS",
+    "AuthMiddleware",
     "ProfileMiddleware",
     "PrometheusMiddleware",
     "RequestIdMiddleware",
     "WriteTrackingMiddleware",
+    "require_any_scope",
+    "require_scope",
 ]

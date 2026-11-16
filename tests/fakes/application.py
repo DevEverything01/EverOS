@@ -19,6 +19,7 @@ import contextlib
 __all__ = [
     "FakeOmeLock",
     "StubAdmin",
+    "StubControlStore",
     "StubEngine",
     "StubKnowledgeService",
     "StubMemoryService",
@@ -405,6 +406,40 @@ class StubEngine:
         self.lifecycle.append("ome.stop")
 
 
+class StubControlStore:
+    """Control-plane store double; methods return sensible defaults.
+
+    All methods are async no-ops or return empty/None; override specific
+    methods in a test by assigning an ``AsyncMock`` to the attribute.
+    """
+
+    def __init__(self, lifecycle: list[str] | None = None) -> None:
+        self.lifecycle = lifecycle if lifecycle is not None else []
+        self.lookup_key = AsyncMock(return_value=None)
+        self.create_key = AsyncMock()
+        self.list_keys = AsyncMock(return_value=[])
+        self.revoke_key = AsyncMock(return_value=True)
+        self.rotate_key = AsyncMock(return_value=None)
+        self.touch_key = AsyncMock()
+        self.key_count = AsyncMock(return_value=0)
+        self.log_request = AsyncMock()
+        self.list_request_logs = AsyncMock(return_value=([], 0))
+        self.prune_request_logs = AsyncMock(return_value=0)
+        self.increment_usage = AsyncMock()
+        self.get_usage = AsyncMock(return_value=[])
+        self.add_feedback = AsyncMock(return_value=1)
+        self.add_tags = AsyncMock(return_value=1)
+        self.get_tags = AsyncMock(return_value=[])
+        self.get_memories_by_tag = AsyncMock(return_value=[])
+
+    async def create_schema(self) -> int:
+        self.lifecycle.append("control.create_schema")
+        return 1
+
+    async def dispose(self) -> None:
+        self.lifecycle.append("control.dispose")
+
+
 def make_memory_service(**overrides: Any) -> MemoryService:
     """A real :class:`MemoryService` over in-memory stores and unused ports.
 
@@ -609,6 +644,7 @@ def make_application(
     knowledge: Any = None,
     ops: Any = None,
     purge: Any = None,
+    control: Any = None,
     capabilities: Capabilities = _ALL_CAPABILITIES,
     lifecycle: list[str] | None = None,
 ) -> Application:
@@ -628,6 +664,7 @@ def make_application(
             else StubOpsService(capabilities, events, memory.queue_health)
         ),
         purge=purge if purge is not None else StubPurgeService(events),
+        control=control if control is not None else StubControlStore(events),
         capabilities=capabilities,
         _settings=load_settings(),
         _root=MemoryRoot(root) if root is not None else MemoryRoot.resolve(),

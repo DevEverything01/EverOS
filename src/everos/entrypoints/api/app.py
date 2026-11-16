@@ -6,7 +6,8 @@ lifespan, and registers the public routes (``/health``, ``/metrics``).
 The lifespan owns one :class:`~everos.service.Application`: it starts it on
 startup, keeps it on ``app.state.application`` (the only object routes read,
 via :func:`everos.entrypoints.api.dependencies.application`) and closes it on
-shutdown.
+shutdown. The Application's ``control`` store provides authentication and
+control-plane operations.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from everos.entrypoints.api.middleware import (
     DEFAULT_CORS_ALLOW_HEADERS,
     DEFAULT_CORS_ALLOW_METHODS,
     DEFAULT_CORS_ORIGINS,
+    AuthMiddleware,
     ProfileMiddleware,
     PrometheusMiddleware,
     RequestIdMiddleware,
@@ -34,6 +36,7 @@ from everos.service import Application, build_application
 
 from .exception_handlers import register_handlers
 from .routes import (
+    auth,
     cascade,
     delete,
     get,
@@ -81,11 +84,14 @@ def create_app(
         FastAPI: Configured application instance.
     """
     enable_docs = _docs_enabled()
+    effective_settings = settings or load_settings()
 
     @asynccontextmanager
     async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
-        built = application or build_application(settings or load_settings())
+        built = application or build_application(effective_settings)
         fastapi_app.state.application = built
+        fastapi_app.state.control_store = built.control
+
         try:
             await built.start()
             yield
@@ -106,6 +112,7 @@ def create_app(
 
     if application is not None:
         app.state.application = application
+        app.state.control_store = application.control
 
     # Exception handlers
     register_handlers(app)
@@ -113,6 +120,8 @@ def create_app(
     # Middleware order: earlier `add_middleware` calls become inner, later ones outer.
     # Write tracking innermost: it stamps the request the handler runs in.
     app.add_middleware(WriteTrackingMiddleware)
+    # Auth middleware: validates API keys and sets request.state.api_key_id/scopes.
+    app.add_middleware(AuthMiddleware, settings=effective_settings.auth)
     # CORS next (matches base_app.py legacy pattern).
     app.add_middleware(
         CORSMiddleware,
@@ -159,6 +168,9 @@ def create_app(
     app.include_router(knowledge.router, prefix="/api/v2")
     app.include_router(cascade.router, prefix="/api/v2")
     app.include_router(tasks.router, prefix="/api/v2")
+    # Auth routes — v2 only (new feature, no legacy alias needed).
+    app.include_router(auth.router, prefix="/api/v2")
 
-    logger.info("app_created", docs_enabled=enable_docs)
+    auth_required = effective_settings.auth.auth_required
+    logger.info("app_created", docs_enabled=enable_docs, auth_required=auth_required)
     return app

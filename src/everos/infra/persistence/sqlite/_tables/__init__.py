@@ -9,6 +9,12 @@ every registered table.
 
 from .cluster import Cluster as Cluster
 from .cluster import ClusterMember as ClusterMember
+from .control import ApiKey as ApiKey
+from .control import Feedback as Feedback
+from .control import RequestLog as RequestLog
+from .control import SchemaVersion as SchemaVersion
+from .control import Tag as Tag
+from .control import UsageDaily as UsageDaily
 from .conversation_status import ConversationStatus as ConversationStatus
 from .knowledge import KnowledgeDocumentRow as KnowledgeDocumentRow
 from .knowledge import KnowledgeTopicRow as KnowledgeTopicRow
@@ -21,9 +27,11 @@ from .sender_name import SenderName as SenderName
 from .unprocessed_buffer import UnprocessedBuffer as UnprocessedBuffer
 
 __all__ = [
+    "ApiKey",
     "Cluster",
     "ClusterMember",
     "ConversationStatus",
+    "Feedback",
     "KnowledgeDocumentRow",
     "KnowledgeTopicRow",
     "MdChangeState",
@@ -31,6 +39,10 @@ __all__ = [
     "MemorizeInbox",
     "PurgeJob",
     "ReflectionReport",
+    "RequestLog",
+    "SchemaVersion",
     "SenderName",
+    "Tag",
     "UnprocessedBuffer",
+    "UsageDaily",
 ]
