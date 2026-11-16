@@ -2,6 +2,7 @@
 
 ## Status
 
+### Part A: Backend parity
 - [x] A1: Control-plane storage (`control.db`)
 - [x] A2: Authentication middleware
 - [x] A3: API-key management endpoints + session cookie
@@ -11,6 +12,15 @@
 - [x] A7: Multi knowledge base with legacy alias
 - [x] A8: Tasks shim (existing) + docs config
 - [x] A9: Admin aggregates (overview, memories, agents)
+
+### Part B: Bundled console
+- [x] B1: Serve console from app at `/console`
+- [x] B2: Package data (web assets shipped in wheel)
+- [x] B3: CLI `--console/--no-console` flag
+- [x] B4: Login page with session cookie auth
+- [x] B5: English-first UI (language policy compliant)
+- [x] B6: Write actions (edit profile, episodes, feedback, tags, keys, KB)
+- [x] B7: All pages (Dashboard, Memory Bank, Logs, Keys, Knowledge, Playground, Settings)
 
 ## Implementation Summary
 
@@ -192,3 +202,74 @@ Files:
 Tests:
 - `tests/unit/test_entrypoints/test_api/test_routes/test_memory_edit.py` — 11 tests
 - `tests/unit/test_entrypoints/test_api/test_routes/test_knowledge_bases.py` — 10 tests
+
+## Part B: Bundled Console
+
+- [x] B1: Serve console from app at `/console`
+- [x] B2: Package data (web assets shipped in wheel)
+- [x] B3: CLI `--console/--no-console` flag
+- [x] B4: Login page with session cookie auth
+- [x] B5: English-first UI (language policy compliant)
+- [x] B6: Write actions (edit profile, episodes, feedback, tags, keys, KB)
+- [x] B7: All pages (Dashboard, Memory Bank, Request Logs, API Keys, Knowledge, Playground, Settings)
+
+### B1: Console routing
+
+Static file serving at `/console` with SPA fallback:
+- `GET /console` and `GET /console/` serve `index.html`
+- `GET /console/{path}` serves static assets or falls back to index.html
+- Path traversal attempts blocked (resolve + prefix check)
+- Appropriate caching headers (fonts: 86400s, others: no-store)
+
+Files:
+- `src/everos/entrypoints/api/routes/console.py` — Console router
+- `src/everos/entrypoints/api/app.py` — Conditional mount when `console_enabled`
+
+### B2: Package data
+
+Web assets moved into the Python package:
+- `src/everos/web/__init__.py` — Package marker with docstring
+- `src/everos/web/static/` — HTML, CSS, JS, fonts (bundled Manrope woff2)
+
+The wheel includes these files via hatch's standard package handling.
+
+### B3: CLI flag
+
+Added `--console/--no-console` to `everos server start`:
+- Sets `EVEROS_SERVER__CONSOLE_ENABLED` environment variable
+- Default: enabled (console_enabled=True in ServerSettings)
+
+Files:
+- `src/everos/entrypoints/cli/commands/server.py` — Flag handling
+- `src/everos/config/settings.py` — `ServerSettings.console_enabled`
+
+### B4-B7: Console UI
+
+Full-featured vanilla JS console with:
+- **Auth**: Login page posts to `/api/v2/auth/session`, uses cookies
+- **Dashboard**: Usage chart, stat tiles, recent requests, instance info
+- **Memory Bank**: Overview/User/Agent tabs, profile editing, episode editing, feedback (+/-)
+- **Request Logs**: Filters (method, status, path), latency column, paginated
+- **API Keys**: Create/rotate/revoke with confirm dialogs
+- **Knowledge**: Create KB, upload docs, delete KB
+- **Playground**: Search + Context + Add modes
+- **Settings**: Instance info, links to API docs
+
+Visual fidelity: 240px sidebar, amber accent (#f5c542), white cards, Manrope font.
+Safety: Confirm dialogs for destructive actions, secrets masked.
+
+Files:
+- `src/everos/web/static/index.html` — SPA shell with modal and login overlays
+- `src/everos/web/static/app.js` — Full console application
+- `src/everos/web/static/app.css` — Styles including modal/login
+- `src/everos/web/static/font.css` — Manrope font-face
+- `src/everos/web/static/manrope-*.woff2` — Bundled fonts
+
+### Tests
+
+- `tests/unit/test_entrypoints/test_api/test_routes/test_console.py` — 7 tests
+  - Root serves HTML
+  - Slash serves HTML
+  - CSS/JS/fonts served correctly
+  - SPA fallback for unknown paths
+  - Path traversal blocked

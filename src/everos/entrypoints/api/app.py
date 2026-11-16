@@ -39,6 +39,7 @@ from .routes import (
     admin,
     auth,
     cascade,
+    console,
     delete,
     get,
     health,
@@ -179,6 +180,16 @@ def create_app(
     # Admin routes — v2 only (new feature, no legacy alias needed).
     app.include_router(admin.router, prefix="/api/v2")
 
+    # Console — bundled web UI served at /console when enabled.
+    enable_console = effective_settings.server.console_enabled
+    if enable_console:
+        app.include_router(console.router)
+
     auth_required = effective_settings.auth.auth_required
-    logger.info("app_created", docs_enabled=enable_docs, auth_required=auth_required)
+    logger.info(
+        "app_created",
+        docs_enabled=enable_docs,
+        console_enabled=enable_console,
+        auth_required=auth_required,
+    )
     return app

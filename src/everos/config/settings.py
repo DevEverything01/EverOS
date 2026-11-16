@@ -1199,11 +1199,16 @@ class ServerSettings(BaseModel):
 
     Env binding:
         EVEROS_SERVER__DOCS_ENABLED
+        EVEROS_SERVER__CONSOLE_ENABLED
     """
 
     docs_enabled: bool = True
     """Enable OpenAPI docs endpoints (/docs, /redoc, /openapi.json).
     Default true; set false in production to hide API docs."""
+
+    console_enabled: bool = True
+    """Enable the bundled web console at /console.
+    Default true; set false to disable the console entirely."""
 
 
 class PurgeSettings(BaseModel):

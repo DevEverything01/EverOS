@@ -46,6 +46,7 @@ from tests.fakes import (
 # engine can write anything; the purge runner starts last.
 _STARTED = [
     "sqlite.create",
+    "control.create_schema",
     "purge.restore",
     "memory.finish_interrupted_deletions",
     "index.start",
@@ -249,6 +250,7 @@ async def test_start_brings_the_queue_up_last_and_aclose_unwinds_in_reverse(
         "ops.aclose",
         "index.close",
         "sqlite.dispose",
+        "control.dispose",
     ]
 
 
@@ -277,7 +279,7 @@ async def test_aclose_without_start_closes_only_the_storage(tmp_path: Path) -> N
 
     await application.aclose()
 
-    assert events == ["index.close", "sqlite.dispose"]
+    assert events == ["index.close", "sqlite.dispose", "control.dispose"]
 
 
 async def test_aclose_is_idempotent(tmp_path: Path) -> None:
@@ -299,7 +301,7 @@ async def test_async_with_closes_on_exit_without_starting(tmp_path: Path) -> Non
         assert events == []
         assert application.memory is not None
 
-    assert events == ["index.close", "sqlite.dispose"]
+    assert events == ["index.close", "sqlite.dispose", "control.dispose"]
 
 
 async def test_a_failing_stop_does_not_skip_the_rest(tmp_path: Path) -> None:
@@ -320,6 +322,7 @@ async def test_a_failing_stop_does_not_skip_the_rest(tmp_path: Path) -> None:
         "ops.aclose",
         "index.close",
         "sqlite.dispose",
+        "control.dispose",
     ]
 
 
@@ -347,7 +350,7 @@ async def test_failed_start_releases_the_root_lock(
     with pytest.raises(error):
         await application.start()
     assert OmeLock(application._root.ome_db).is_free()
-    assert events[-2:] == ["index.close", "sqlite.dispose"]
+    assert events[-3:] == ["index.close", "sqlite.dispose", "control.dispose"]
 
 
 async def test_cancelling_close_keeps_the_lock_until_cleanup_finishes(
@@ -382,7 +385,12 @@ async def test_cancelling_close_keeps_the_lock_until_cleanup_finishes(
         proceed.set()
         with pytest.raises(asyncio.CancelledError):
             await asyncio.wait_for(closing, timeout=2)
-        assert events[-3:] == ["ops.aclose", "index.close", "sqlite.dispose"]
+        assert events[-4:] == [
+            "ops.aclose",
+            "index.close",
+            "sqlite.dispose",
+            "control.dispose",
+        ]
         assert OmeLock(application._root.ome_db).is_free()
     finally:
         proceed.set()

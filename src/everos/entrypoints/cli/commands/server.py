@@ -73,6 +73,11 @@ def start(
         "--log-level",
         help="Log level (env: EVEROS_LOG_LEVEL; default: logging.level, INFO)",
     ),
+    console: bool | None = typer.Option(
+        None,
+        "--console/--no-console",
+        help="Enable/disable the bundled web console at /console (default: on)",
+    ),
 ) -> None:
     """Start the HTTP API server."""
     if root:
@@ -94,6 +99,9 @@ def start(
         # The app factory loads its own settings (in a fresh process under
         # --reload), so the override travels the way --root does: as env.
         os.environ["EVEROS_LOGGING__LEVEL"] = level_override.upper()
+
+    if console is not None:
+        os.environ["EVEROS_SERVER__CONSOLE_ENABLED"] = str(console).lower()
 
     settings = load_settings()
     configure_process(settings)
