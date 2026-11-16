@@ -36,6 +36,7 @@ from everos.core.utils.datetime import today_with_timezone
 from everos.infra.persistence.markdown._base.entries import (
     Entry,
     EntryId,
+    find_entry,
     render_structured_entry,
     split_entries,
 )
@@ -273,6 +274,40 @@ class BaseDailyWriter:
                 body = body[: entry.start] + body[end:]
             await self._writer.write_markdown(path, frontmatter=meta, body=body)
             return [entry.id for entry in gone]
+
+    async def replace_entry(
+        self,
+        path: Path,
+        entry_id: str,
+        inline: Mapping[str, object],
+        sections: Mapping[str, str],
+    ) -> bool:
+        """Rewrite one entry in place, keeping its id, header and file.
+
+        Used by the console's "edit this memory" action: unlike remove+append,
+        the entry stays in its original daily file with its original id, so a
+        later cascade sees an update rather than a delete plus a new episode.
+        """
+        async with self._writer.locked(path):
+            try:
+                raw = await MarkdownReader.read_text(path)
+            except FileNotFoundError:
+                return False
+            meta, body = parse_frontmatter(raw)
+            entry = find_entry(body, entry_id)
+            if entry is None:
+                return False
+            header = next(
+                (line for line in entry.body.splitlines() if line.strip()),
+                f"## {entry_id}",
+            )
+            rendered = render_structured_entry(
+                header=header, inline=inline, sections=sections
+            )
+            end = entry.end + (body[entry.end : entry.end + 1] == "\n")
+            body = body[: entry.start] + rendered + body[end:]
+            await self._writer.write_markdown(path, frontmatter=meta, body=body)
+            return True
 
     async def drop_deprecations(self, path: Path, keys: Collection[str]) -> bool:
         """Remove ``keys`` from the file's ``deprecated_entries``; whether any was."""

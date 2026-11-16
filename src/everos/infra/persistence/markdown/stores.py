@@ -284,6 +284,15 @@ class MarkdownEpisodeStore(_DailyLogStore[Episode]):
             scope, entries=entries, replaced_by=replaced_by, only_if=only_if
         )
 
+    async def replace(self, scope: Scope, entry_id: str, episode: Episode) -> bool:
+        """Rewrite one episode in place, keeping its entry id and daily file."""
+        path = self._path_of(scope, entry_id)
+        if path is None:
+            return False
+        inline, sections = self._to_entry(episode)
+        async with LOCKS.hold("owner", owner_lock(scope)):
+            return await self._writer.replace_entry(path, entry_id, inline, sections)
+
     async def exists(self, scope: Scope, entry_ids: Collection[str]) -> set[str]:
         return {entry.id for entry in await self._entries(scope, entry_ids)}
 

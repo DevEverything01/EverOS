@@ -206,11 +206,7 @@ class TestUpdateEpisode:
         mock_stored.ref = MagicMock(entry_id="ep_20231115_001")
 
         mock_stores.episode.read_many.return_value = [mock_stored]
-        mock_stores.episode.remove.return_value = [MagicMock()]
-        mock_stores.episode.append.return_value = MagicMock(
-            id="user1_ep_20231115_002",
-            entry_id="ep_20231115_002",
-        )
+        mock_stores.episode.replace.return_value = True
 
         result = await update_episode(
             mock_stores,
@@ -221,9 +217,11 @@ class TestUpdateEpisode:
         )
 
         assert not result.unchanged
+        assert result.id == "user1_ep_20231115_001"
         assert result.edited_at is not None
-        mock_stores.episode.remove.assert_called_once()
-        mock_stores.episode.append.assert_called_once()
+        mock_stores.episode.replace.assert_awaited_once()
+        mock_stores.episode.remove.assert_not_called()
+        mock_stores.episode.append.assert_not_called()
 
     async def test_update_episode_no_change(self, mock_stores):
         """Sending the same values returns unchanged=True."""

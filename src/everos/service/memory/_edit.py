@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Literal
 from everos.core.observability.logging import get_logger
 from everos.core.utils.datetime import get_utc_now, to_timestamp_ms
 from everos.memory.models import ExplicitInfoItem, ImplicitTraitItem, Profile
-from everos.memory.ports import NO_SOURCE_CHECK, Scope
+from everos.memory.ports import Scope
 
 if TYPE_CHECKING:
     from everos.memory.deps import Stores
@@ -298,21 +298,16 @@ async def update_episode(
     if not changed:
         return EpisodeUpdateResult(id=memory_id, unchanged=True)
 
-    removed = await stores.episode.remove(scope, [entry_id])
-    if not removed:
-        return EpisodeUpdateResult(id=memory_id, unchanged=True)
-
-    ref = await stores.episode.append(scope, episode, only_if=NO_SOURCE_CHECK)
+    replaced = await stores.episode.replace(scope, entry_id, episode)
     edited_at = get_utc_now().isoformat()
 
-    logger.info(
-        "episode_updated",
-        memory_id=memory_id,
-        new_entry_id=ref.entry_id if ref else None,
-    )
+    if not replaced:
+        return EpisodeUpdateResult(id=memory_id, unchanged=True)
+
+    logger.info("episode_updated", memory_id=memory_id, entry_id=entry_id)
 
     return EpisodeUpdateResult(
-        id=ref.id if ref else memory_id,
+        id=memory_id,
         memory_type="episode",
         unchanged=False,
         edited_at=edited_at,
