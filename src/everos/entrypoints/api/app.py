@@ -43,7 +43,9 @@ from .routes import (
     get,
     health,
     knowledge,
+    knowledge_bases,
     memorize,
+    memory_edit,
     metrics,
     ome,
     purge,
@@ -151,9 +153,11 @@ def create_app(
     app.include_router(search.router, prefix="/api/v1")
     app.include_router(get.router, prefix="/api/v1")
     app.include_router(delete.router, prefix="/api/v1")
+    app.include_router(memory_edit.router, prefix="/api/v1")
     app.include_router(purge.router, prefix="/api/v1")
     app.include_router(ome.router, prefix="/api/v1")
     app.include_router(knowledge.router, prefix="/api/v1")
+    app.include_router(knowledge_bases.router, prefix="/api/v1")
     # Operational, not a memory API: it stops a background subsystem. Mounted on
     # both prefixes so a caller does not have to know which one this build serves.
     app.include_router(cascade.router, prefix="/api/v1")
@@ -163,9 +167,11 @@ def create_app(
     app.include_router(search.router, prefix="/api/v2")
     app.include_router(get.router, prefix="/api/v2")
     app.include_router(delete.router, prefix="/api/v2")
+    app.include_router(memory_edit.router, prefix="/api/v2")
     app.include_router(purge.router, prefix="/api/v2")
     app.include_router(ome.router, prefix="/api/v2")
     app.include_router(knowledge.router, prefix="/api/v2")
+    app.include_router(knowledge_bases.router, prefix="/api/v2")
     app.include_router(cascade.router, prefix="/api/v2")
     app.include_router(tasks.router, prefix="/api/v2")
     # Auth routes — v2 only (new feature, no legacy alias needed).

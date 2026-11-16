@@ -487,15 +487,17 @@ class ControlStore:
 
     async def remove_tags(self, memory_id: str, tags: list[str]) -> int:
         """Remove tags from a memory. Returns count removed."""
+        if not tags:
+            return 0
         async with self._session_factory() as session:
-            result = await session.execute(
-                text(
-                    "DELETE FROM tags WHERE memory_id = :memory_id AND tag IN :tags"
-                ).bindparams(memory_id=memory_id),
-                {"tags": tuple(tags)},
-            )
+            stmt = select(Tag).where(Tag.memory_id == memory_id, Tag.tag.in_(tags))
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+            removed = len(rows)
+            for row in rows:
+                await session.delete(row)
             await session.commit()
-            return result.rowcount
+            return removed
 
     async def get_tags(self, memory_id: str) -> list[str]:
         """Get all tags for a memory."""

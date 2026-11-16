@@ -36,6 +36,21 @@ from .knowledge import KnowledgeSearchResponse as KnowledgeSearchResponse
 from .knowledge import SearchHitDTO as SearchHitDTO
 from .knowledge import TopicDetailResponse as TopicDetailResponse
 from .knowledge import TopicOverviewDTO as TopicOverviewDTO
+from .knowledge_bases import KBCategoryItem as KBCategoryItem
+from .knowledge_bases import KBCategoryListResponse as KBCategoryListResponse
+from .knowledge_bases import KBDocumentCreateRequest as KBDocumentCreateRequest
+from .knowledge_bases import KBDocumentDetail as KBDocumentDetail
+from .knowledge_bases import KBDocumentItem as KBDocumentItem
+from .knowledge_bases import KBDocumentListResponse as KBDocumentListResponse
+from .knowledge_bases import KBSearchHit as KBSearchHit
+from .knowledge_bases import KBSearchRequest as KBSearchRequest
+from .knowledge_bases import KBSearchResponse as KBSearchResponse
+from .knowledge_bases import KBTopicDetail as KBTopicDetail
+from .knowledge_bases import KBTopicOverview as KBTopicOverview
+from .knowledge_bases import KnowledgeBaseCreateRequest as KnowledgeBaseCreateRequest
+from .knowledge_bases import KnowledgeBaseCreateResponse as KnowledgeBaseCreateResponse
+from .knowledge_bases import KnowledgeBaseInfo as KnowledgeBaseInfo
+from .knowledge_bases import KnowledgeBaseListResponse as KnowledgeBaseListResponse
 from .memorize import AcceptedResponseData as AcceptedResponseData
 from .memorize import AddResponseData as AddResponseData
 from .memorize import ContentItemDTO as ContentItemDTO
@@ -45,6 +60,24 @@ from .memorize import MemorizeFlushRequest as MemorizeFlushRequest
 from .memorize import MessageItemDTO as MessageItemDTO
 from .memorize import ToolCallDTO as ToolCallDTO
 from .memorize import ToolFunctionDTO as ToolFunctionDTO
+from .memory_edit import ContextMemory as ContextMemory
+from .memory_edit import ContextRequest as ContextRequest
+from .memory_edit import ContextResponse as ContextResponse
+from .memory_edit import FeedbackRequest as FeedbackRequest
+from .memory_edit import FeedbackResponse as FeedbackResponse
+from .memory_edit import MemoryPatch as MemoryPatch
+from .memory_edit import MemoryUpdateReason as MemoryUpdateReason
+from .memory_edit import MemoryUpdateRequest as MemoryUpdateRequest
+from .memory_edit import MemoryUpdateResponse as MemoryUpdateResponse
+from .memory_edit import ProfileEditData as ProfileEditData
+from .memory_edit import ProfileEditOperation as ProfileEditOperation
+from .memory_edit import ProfileEditRequest as ProfileEditRequest
+from .memory_edit import ProfileEditResponse as ProfileEditResponse
+from .memory_edit import ProfileEditResult as ProfileEditResult
+from .memory_edit import TagsAddRequest as TagsAddRequest
+from .memory_edit import TagsListResponse as TagsListResponse
+from .memory_edit import TagsRemoveRequest as TagsRemoveRequest
+from .memory_edit import TagsResponse as TagsResponse
 from .ome import RunSummary as RunSummary
 from .ome import TriggerRequest as TriggerRequest
 from .ome import TriggerResponse as TriggerResponse
@@ -63,6 +96,9 @@ __all__ = [
     "CategoryDTO",
     "CategoryListResponse",
     "ContentItemDTO",
+    "ContextMemory",
+    "ContextRequest",
+    "ContextResponse",
     "DeleteByIdsRequest",
     "DeleteByIdsResponseData",
     "DeleteRequest",
@@ -77,16 +113,42 @@ __all__ = [
     "DocumentPatchResponse",
     "ErrorDetail",
     "ErrorResponse",
+    "FeedbackRequest",
+    "FeedbackResponse",
     "FlushResponseData",
     "HealthCapabilities",
     "HealthResponse",
+    "KBCategoryItem",
+    "KBCategoryListResponse",
+    "KBDocumentCreateRequest",
+    "KBDocumentDetail",
+    "KBDocumentItem",
+    "KBDocumentListResponse",
+    "KBSearchHit",
+    "KBSearchRequest",
+    "KBSearchResponse",
+    "KBTopicDetail",
+    "KBTopicOverview",
+    "KnowledgeBaseCreateRequest",
+    "KnowledgeBaseCreateResponse",
+    "KnowledgeBaseInfo",
+    "KnowledgeBaseListResponse",
     "KnowledgeSearchRequest",
     "KnowledgeSearchResponse",
     "MemorizeAddRequest",
     "MemorizeFlushRequest",
     "MemorizeQueueHealthBlock",
+    "MemoryPatch",
+    "MemoryUpdateReason",
+    "MemoryUpdateRequest",
+    "MemoryUpdateResponse",
     "MessageItemDTO",
     "PathSafeId",
+    "ProfileEditData",
+    "ProfileEditOperation",
+    "ProfileEditRequest",
+    "ProfileEditResponse",
+    "ProfileEditResult",
     "ProjectScopeId",
     "PurgeConfirmRequest",
     "PurgeJobData",
@@ -98,6 +160,10 @@ __all__ = [
     "RunSummary",
     "SearchHitDTO",
     "SuccessEnvelope",
+    "TagsAddRequest",
+    "TagsListResponse",
+    "TagsRemoveRequest",
+    "TagsResponse",
     "ToolCallDTO",
     "ToolFunctionDTO",
     "TopicDetailResponse",

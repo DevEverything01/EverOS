@@ -7,6 +7,8 @@
 - [x] A3: API-key management endpoints + session cookie
 - [x] A4: Request logs middleware and admin endpoints
 - [x] A5: Usage metering (quota TBD)
+- [x] A6: Memory editing, feedback, context, tags
+- [x] A7: Multi knowledge base with legacy alias
 - [x] A8: Tasks shim (existing) + docs config
 - [x] A9: Admin aggregates (overview, memories, agents)
 
@@ -141,3 +143,52 @@ All require `admin` scope.
 - Admin routes for request logs, usage, overview, memories, agents
 - ServerSettings for docs_enabled config
 - Tests added for middleware and routes
+
+### A6: Memory editing, feedback, context, tags
+
+Endpoints (Cloud-parity):
+- `POST /api/v2/memory/edit` — Bulk-edit a user's profile items
+- `POST /api/v2/memory/update` — Edit one episode's narrative/summary/subject
+- `POST /api/v2/memory/feedback` — Rate a memory (stores in control.db)
+- `POST /api/v2/memory/context` — Multi-round LLM-driven retrieval (stub: delegates to search)
+- `POST /api/v2/memory/tags/add` — Add tags to a memory
+- `POST /api/v2/memory/tags/remove` — Remove tags from a memory
+- `GET /api/v2/memory/tags` — List tags for a memory or memories for a tag
+
+Files:
+- `src/everos/entrypoints/api/schemas/memory_edit.py` — Request/response DTOs
+- `src/everos/entrypoints/api/routes/memory_edit.py` — Route handlers
+- `src/everos/entrypoints/api/schemas/__init__.py` — Re-exports
+- `src/everos/entrypoints/api/app.py` — Router registration
+
+ControlStore additions:
+- `add_feedback()` — Store feedback in control.db
+- `add_tags()` — Add tags to memory
+- `remove_tags()` — Remove tags (fixed SQL syntax for SQLite)
+- `get_tags()` — List tags for memory
+- `get_memories_by_tag()` — List memory ids by tag
+
+### A7: Multi knowledge base
+
+Endpoints (Cloud-parity):
+- `POST /api/v2/knowledge_bases` — Create a knowledge base
+- `GET /api/v2/knowledge_bases` — List knowledge bases
+- `DELETE /api/v2/knowledge_bases/{kb_id}` — Delete a knowledge base
+- `POST /api/v2/knowledge_bases/{kb_id}/documents` — Upload a document
+- `GET /api/v2/knowledge_bases/{kb_id}/documents` — List documents
+- `GET /api/v2/knowledge_bases/{kb_id}/documents/{doc_id}` — Get document detail
+- `GET /api/v2/knowledge_bases/{kb_id}/categories` — List categories
+- `GET /api/v2/knowledge_bases/{kb_id}/topics/{topic_id}` — Get topic detail
+- `POST /api/v2/knowledge_bases/{kb_id}/search` — Search knowledge
+
+Legacy alias: `/api/v2/knowledge/*` continues to work via existing router.
+
+Files:
+- `src/everos/entrypoints/api/schemas/knowledge_bases.py` — Request/response DTOs
+- `src/everos/entrypoints/api/routes/knowledge_bases.py` — Route handlers
+- `src/everos/entrypoints/api/schemas/__init__.py` — Re-exports
+- `src/everos/entrypoints/api/app.py` — Router registration
+
+Tests:
+- `tests/unit/test_entrypoints/test_api/test_routes/test_memory_edit.py` — 11 tests
+- `tests/unit/test_entrypoints/test_api/test_routes/test_knowledge_bases.py` — 10 tests

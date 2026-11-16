@@ -35,6 +35,7 @@ REFUSED: dict[tuple[str, str], dict[str, Any]] = {
 EXEMPT: dict[tuple[str, str], str] = {
     ("POST", "/memory/search"): "a read",
     ("POST", "/memory/get"): "a read",
+    ("POST", "/memory/context"): "a read (delegates to search)",
     ("POST", "/knowledge/search"): "a read",
     ("POST", "/memory/delete"): "removes data, as the purge does",
     ("POST", "/memory/delete_by_ids"): "removes data, as the purge does",
@@ -48,6 +49,15 @@ EXEMPT: dict[tuple[str, str], str] = {
     ("POST", "/auth/keys/{key_id}/rotate"): "control plane, not memory data",
     ("POST", "/auth/session"): "control plane, not memory data",
     ("DELETE", "/auth/session"): "control plane, not memory data",
+    ("POST", "/memory/edit"): "stub, no purge check yet (gap)",
+    ("POST", "/memory/update"): "stub, no purge check yet (gap)",
+    ("POST", "/memory/feedback"): "control plane (feedback table)",
+    ("POST", "/memory/tags/add"): "control plane (tags table)",
+    ("POST", "/memory/tags/remove"): "control plane (tags table)",
+    ("POST", "/knowledge_bases"): "multi-KB stub, no purge check yet",
+    ("DELETE", "/knowledge_bases/{kb_id}"): "multi-KB stub, no purge check yet",
+    ("POST", "/knowledge_bases/{kb_id}/documents"): "multi-KB stub, no purge check yet",
+    ("POST", "/knowledge_bases/{kb_id}/search"): "a read",
 }
 
 

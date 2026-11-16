@@ -388,6 +388,326 @@
         }
       }
     },
+    "/api/v1/memory/edit": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Edit Profile",
+        "description": "Bulk-edit a single user's profile items.\n\nRequires an existing profile — this endpoint edits a profile that extraction\nhas already built. It cannot create the first one.",
+        "operationId": "edit_profile_api_v1_memory_edit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileEditRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_ProfileEditResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/update": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Update Memory",
+        "description": "Edit one episode's narrative, summary, or subject.\n\nRe-sending content equal to what is stored returns unchanged=true.",
+        "operationId": "update_memory_api_v1_memory_update_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_MemoryUpdateResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/feedback": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Add Feedback",
+        "description": "Record that a memory was right or wrong.\n\nRecording is not applying: the memory is not updated, deleted, hidden\nor re-indexed. To act on a rating, call update, delete_by_ids or edit.",
+        "operationId": "add_feedback_api_v1_memory_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_FeedbackResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/context": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Get Context",
+        "description": "Multi-round LLM-driven retrieval.\n\nReturns memories, not an answer. Use for multi-hop, temporal and\ncross-conversation questions; use search for everything else.\n\nThis is a stub implementation that delegates to search and assembles\nthe results into a context string.",
+        "operationId": "get_context_api_v1_memory_context_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_ContextResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/tags/add": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Add Tags",
+        "description": "Add tags to a memory.\n\nTags are created by use. Idempotent: re-adding existing tags is harmless.",
+        "operationId": "add_tags_api_v1_memory_tags_add_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagsAddRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_TagsResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/tags/remove": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Remove Tags",
+        "description": "Remove tags from a memory.\n\nRemoving non-existent tags is harmless.",
+        "operationId": "remove_tags_api_v1_memory_tags_remove_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagsRemoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_TagsResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/tags": {
+      "get": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "List Tags",
+        "description": "List tags for a memory, or memory ids with a specific tag.\n\nProvide exactly one of memory_id or tag.",
+        "operationId": "list_tags_api_v1_memory_tags_get",
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Memory Id"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_TagsListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/memory/purge": {
       "post": {
         "tags": [
@@ -1190,6 +1510,513 @@
         }
       }
     },
+    "/api/v1/knowledge_bases": {
+      "post": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Create Knowledge Base",
+        "description": "Create a new knowledge base.\n\nEach knowledge base is a namespace under ``<root>/knowledge/<kb_id>/``.",
+        "operationId": "create_knowledge_base_api_v1_knowledge_bases_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeBaseCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KnowledgeBaseCreateResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "List Knowledge Bases",
+        "description": "List all knowledge bases.",
+        "operationId": "list_knowledge_bases_api_v1_knowledge_bases_get",
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "default": "default",
+              "title": "App Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "default": "default",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KnowledgeBaseListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge_bases/{kb_id}": {
+      "delete": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Delete Knowledge Base",
+        "description": "Delete a knowledge base and all its documents.",
+        "operationId": "delete_knowledge_base_api_v1_knowledge_bases__kb_id__delete",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge_bases/{kb_id}/documents": {
+      "post": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Create Kb Document",
+        "description": "Upload a document to a knowledge base.\n\nAccepts either multipart with a file, or form fields (title + content).",
+        "operationId": "create_kb_document_api_v1_knowledge_bases__kb_id__documents_post",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_kb_document_api_v1_knowledge_bases__kb_id__documents_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBDocumentItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "List Kb Documents",
+        "description": "List documents in a knowledge base.",
+        "operationId": "list_kb_documents_api_v1_knowledge_bases__kb_id__documents_get",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "created_at",
+                "updated_at",
+                "title"
+              ],
+              "type": "string",
+              "default": "created_at",
+              "title": "Sort By"
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "default": "desc",
+              "title": "Sort Order"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBDocumentListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge_bases/{kb_id}/documents/{doc_id}": {
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Get Kb Document",
+        "description": "Get a document with its topic list.",
+        "operationId": "get_kb_document_api_v1_knowledge_bases__kb_id__documents__doc_id__get",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          },
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^d_[a-f0-9]{12,32}$",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBDocumentDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge_bases/{kb_id}/categories": {
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "List Kb Categories",
+        "description": "List categories in a knowledge base.",
+        "operationId": "list_kb_categories_api_v1_knowledge_bases__kb_id__categories_get",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBCategoryListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge_bases/{kb_id}/topics/{topic_id}": {
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Get Kb Topic",
+        "description": "Get a topic with full content.",
+        "operationId": "get_kb_topic_api_v1_knowledge_bases__kb_id__topics__topic_id__get",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          },
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^d_[a-f0-9]{12,32}_\\d+$",
+              "title": "Topic Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBTopicDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge_bases/{kb_id}/search": {
+      "post": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Search Kb",
+        "description": "Search within a knowledge base.",
+        "operationId": "search_kb_api_v1_knowledge_bases__kb_id__search_post",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KBSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBSearchResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/cascade/quiesce": {
       "post": {
         "tags": [
@@ -1686,6 +2513,326 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/memory/edit": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Edit Profile",
+        "description": "Bulk-edit a single user's profile items.\n\nRequires an existing profile — this endpoint edits a profile that extraction\nhas already built. It cannot create the first one.",
+        "operationId": "edit_profile_api_v2_memory_edit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileEditRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_ProfileEditResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/memory/update": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Update Memory",
+        "description": "Edit one episode's narrative, summary, or subject.\n\nRe-sending content equal to what is stored returns unchanged=true.",
+        "operationId": "update_memory_api_v2_memory_update_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_MemoryUpdateResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/memory/feedback": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Add Feedback",
+        "description": "Record that a memory was right or wrong.\n\nRecording is not applying: the memory is not updated, deleted, hidden\nor re-indexed. To act on a rating, call update, delete_by_ids or edit.",
+        "operationId": "add_feedback_api_v2_memory_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_FeedbackResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/memory/context": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Get Context",
+        "description": "Multi-round LLM-driven retrieval.\n\nReturns memories, not an answer. Use for multi-hop, temporal and\ncross-conversation questions; use search for everything else.\n\nThis is a stub implementation that delegates to search and assembles\nthe results into a context string.",
+        "operationId": "get_context_api_v2_memory_context_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_ContextResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/memory/tags/add": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Add Tags",
+        "description": "Add tags to a memory.\n\nTags are created by use. Idempotent: re-adding existing tags is harmless.",
+        "operationId": "add_tags_api_v2_memory_tags_add_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagsAddRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_TagsResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/memory/tags/remove": {
+      "post": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "Remove Tags",
+        "description": "Remove tags from a memory.\n\nRemoving non-existent tags is harmless.",
+        "operationId": "remove_tags_api_v2_memory_tags_remove_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagsRemoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_TagsResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/memory/tags": {
+      "get": {
+        "tags": [
+          "memory"
+        ],
+        "summary": "List Tags",
+        "description": "List tags for a memory, or memory ids with a specific tag.\n\nProvide exactly one of memory_id or tag.",
+        "operationId": "list_tags_api_v2_memory_tags_get",
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Memory Id"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_TagsListResponse_"
                 }
               }
             }
@@ -2488,6 +3635,513 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessEnvelope_CategoryListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/knowledge_bases": {
+      "post": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Create Knowledge Base",
+        "description": "Create a new knowledge base.\n\nEach knowledge base is a namespace under ``<root>/knowledge/<kb_id>/``.",
+        "operationId": "create_knowledge_base_api_v2_knowledge_bases_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeBaseCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KnowledgeBaseCreateResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "List Knowledge Bases",
+        "description": "List all knowledge bases.",
+        "operationId": "list_knowledge_bases_api_v2_knowledge_bases_get",
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "default": "default",
+              "title": "App Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "default": "default",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KnowledgeBaseListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/knowledge_bases/{kb_id}": {
+      "delete": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Delete Knowledge Base",
+        "description": "Delete a knowledge base and all its documents.",
+        "operationId": "delete_knowledge_base_api_v2_knowledge_bases__kb_id__delete",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/knowledge_bases/{kb_id}/documents": {
+      "post": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Create Kb Document",
+        "description": "Upload a document to a knowledge base.\n\nAccepts either multipart with a file, or form fields (title + content).",
+        "operationId": "create_kb_document_api_v2_knowledge_bases__kb_id__documents_post",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_kb_document_api_v2_knowledge_bases__kb_id__documents_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBDocumentItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "List Kb Documents",
+        "description": "List documents in a knowledge base.",
+        "operationId": "list_kb_documents_api_v2_knowledge_bases__kb_id__documents_get",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "created_at",
+                "updated_at",
+                "title"
+              ],
+              "type": "string",
+              "default": "created_at",
+              "title": "Sort By"
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "default": "desc",
+              "title": "Sort Order"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBDocumentListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/knowledge_bases/{kb_id}/documents/{doc_id}": {
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Get Kb Document",
+        "description": "Get a document with its topic list.",
+        "operationId": "get_kb_document_api_v2_knowledge_bases__kb_id__documents__doc_id__get",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          },
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^d_[a-f0-9]{12,32}$",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBDocumentDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/knowledge_bases/{kb_id}/categories": {
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "List Kb Categories",
+        "description": "List categories in a knowledge base.",
+        "operationId": "list_kb_categories_api_v2_knowledge_bases__kb_id__categories_get",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBCategoryListResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/knowledge_bases/{kb_id}/topics/{topic_id}": {
+      "get": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Get Kb Topic",
+        "description": "Get a topic with full content.",
+        "operationId": "get_kb_topic_api_v2_knowledge_bases__kb_id__topics__topic_id__get",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          },
+          {
+            "name": "topic_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^d_[a-f0-9]{12,32}_\\d+$",
+              "title": "Topic Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBTopicDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/knowledge_bases/{kb_id}/search": {
+      "post": {
+        "tags": [
+          "knowledge_bases"
+        ],
+        "summary": "Search Kb",
+        "description": "Search within a knowledge base.",
+        "operationId": "search_kb_api_v2_knowledge_bases__kb_id__search_post",
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^kb_[a-f0-9]{8,32}$",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KBSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_KBSearchResponse_"
                 }
               }
             }
@@ -3513,6 +5167,110 @@
         ],
         "title": "Body_create_document_route_api_v2_knowledge_documents_post"
       },
+      "Body_create_kb_document_api_v1_knowledge_bases__kb_id__documents_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "title": "Body_create_kb_document_api_v1_knowledge_bases__kb_id__documents_post"
+      },
+      "Body_create_kb_document_api_v2_knowledge_bases__kb_id__documents_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "title": "Body_create_kb_document_api_v2_knowledge_bases__kb_id__documents_post"
+      },
       "Body_replace_document_route_api_v1_knowledge_documents__doc_id__put": {
         "properties": {
           "file": {
@@ -3821,6 +5579,107 @@
         ],
         "title": "ContentItemDTO",
         "description": "Content piece (v1 API brief appendix A)."
+      },
+      "ContextMemory": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "score",
+          "text"
+        ],
+        "title": "ContextMemory",
+        "description": "A memory in the context response."
+      },
+      "ContextRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "user_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "top_k": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "default": 10
+          },
+          "app_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "App Id",
+            "default": "default"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query",
+          "user_id"
+        ],
+        "title": "ContextRequest",
+        "description": "Multi-round LLM-driven retrieval request."
+      },
+      "ContextResponse": {
+        "properties": {
+          "context": {
+            "type": "string",
+            "title": "Context"
+          },
+          "memories": {
+            "items": {
+              "$ref": "#/components/schemas/ContextMemory"
+            },
+            "type": "array",
+            "title": "Memories"
+          },
+          "tokens_estimate": {
+            "type": "integer",
+            "title": "Tokens Estimate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "context",
+          "memories",
+          "tokens_estimate"
+        ],
+        "title": "ContextResponse",
+        "description": "Assembled prompt-ready context string."
       },
       "CreateKeyRequest": {
         "properties": {
@@ -4478,6 +6337,133 @@
         "title": "ErrorResponse",
         "description": "Canonical error envelope returned by all error handlers."
       },
+      "FeedbackRequest": {
+        "properties": {
+          "memory_type": {
+            "type": "string",
+            "enum": [
+              "episode",
+              "profile",
+              "agent_case",
+              "agent_skill"
+            ],
+            "title": "Memory Type"
+          },
+          "memory_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Memory Id"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id",
+            "description": "For profile: the item_id of the rated entry (ei_*/it_*)"
+          },
+          "rating": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative"
+            ],
+            "title": "Rating"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "hallucination",
+                  "outdated",
+                  "wrong_subject",
+                  "wrong_time",
+                  "redundant",
+                  "privacy",
+                  "style",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Negative only"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestion",
+            "description": "Negative only: what the memory should have said"
+          },
+          "app_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "App Id",
+            "default": "default"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "memory_type",
+          "memory_id",
+          "rating"
+        ],
+        "title": "FeedbackRequest",
+        "description": "Record that a memory was right or wrong."
+      },
+      "FeedbackResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "FeedbackResponse",
+        "description": "Feedback record ID."
+      },
       "FilterNode": {
         "properties": {
           "AND": {
@@ -5054,6 +7040,429 @@
         "title": "HealthResponse",
         "description": "Response schema for ``GET /health``.\n\nDeclared as a Pydantic model (not ``dict``) so the generated\nOpenAPI schema carries the full field shape — ``capabilities``,\n``disabled_features`` and ``cascade`` are typed. A bare ``-> dict``\nreturn type degrades the OpenAPI response to\n``additionalProperties: true``, which robs clients (and codegen) of\nany structure to lean on."
       },
+      "KBCategoryItem": {
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "title": "Category Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "document_count": {
+            "type": "integer",
+            "title": "Document Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id"
+        ],
+        "title": "KBCategoryItem",
+        "description": "Category in a knowledge base."
+      },
+      "KBCategoryListResponse": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/KBCategoryItem"
+            },
+            "type": "array",
+            "title": "Categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "categories"
+        ],
+        "title": "KBCategoryListResponse",
+        "description": "List of categories in a knowledge base."
+      },
+      "KBDocumentDetail": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "topic_count": {
+            "type": "integer",
+            "title": "Topic Count",
+            "default": 0
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/KBTopicOverview"
+            },
+            "type": "array",
+            "title": "Topics"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_id",
+          "title"
+        ],
+        "title": "KBDocumentDetail",
+        "description": "Full document detail."
+      },
+      "KBDocumentItem": {
+        "properties": {
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "topic_count": {
+            "type": "integer",
+            "title": "Topic Count",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_id",
+          "title"
+        ],
+        "title": "KBDocumentItem",
+        "description": "Document item in a list."
+      },
+      "KBDocumentListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KBDocumentItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "KBDocumentListResponse",
+        "description": "List of documents in a knowledge base."
+      },
+      "KBSearchHit": {
+        "properties": {
+          "topic_id": {
+            "type": "string",
+            "title": "Topic Id"
+          },
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "doc_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Title"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "depth": {
+            "type": "integer",
+            "title": "Depth",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic_id",
+          "doc_id",
+          "score"
+        ],
+        "title": "KBSearchHit",
+        "description": "A search hit in a knowledge base."
+      },
+      "KBSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "keyword",
+              "vector",
+              "hybrid"
+            ],
+            "title": "Method",
+            "default": "hybrid"
+          },
+          "top_k": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "default": 10
+          },
+          "score_threshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Threshold"
+          },
+          "include_content": {
+            "type": "boolean",
+            "title": "Include Content",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "KBSearchRequest",
+        "description": "Search within a knowledge base."
+      },
+      "KBSearchResponse": {
+        "properties": {
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/KBSearchHit"
+            },
+            "type": "array",
+            "title": "Topics"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topics",
+          "total"
+        ],
+        "title": "KBSearchResponse",
+        "description": "Search response from a knowledge base."
+      },
+      "KBTopicDetail": {
+        "properties": {
+          "topic_id": {
+            "type": "string",
+            "title": "Topic Id"
+          },
+          "doc_id": {
+            "type": "string",
+            "title": "Doc Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "depth": {
+            "type": "integer",
+            "title": "Depth",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic_id",
+          "doc_id"
+        ],
+        "title": "KBTopicDetail",
+        "description": "Full topic detail."
+      },
+      "KBTopicOverview": {
+        "properties": {
+          "topic_id": {
+            "type": "string",
+            "title": "Topic Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "depth": {
+            "type": "integer",
+            "title": "Depth",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic_id"
+        ],
+        "title": "KBTopicOverview",
+        "description": "Topic overview in a document."
+      },
       "KeyListItem": {
         "properties": {
           "key_id": {
@@ -5136,6 +7545,147 @@
         ],
         "title": "KeyListResponse",
         "description": "Response for listing API keys."
+      },
+      "KnowledgeBaseCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "app_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "App Id",
+            "default": "default"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "KnowledgeBaseCreateRequest",
+        "description": "Create a new knowledge base."
+      },
+      "KnowledgeBaseCreateResponse": {
+        "properties": {
+          "kb_id": {
+            "type": "string",
+            "title": "Kb Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kb_id",
+          "name"
+        ],
+        "title": "KnowledgeBaseCreateResponse",
+        "description": "Response for knowledge base creation."
+      },
+      "KnowledgeBaseInfo": {
+        "properties": {
+          "kb_id": {
+            "type": "string",
+            "title": "Kb Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "document_count": {
+            "type": "integer",
+            "title": "Document Count",
+            "default": 0
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kb_id",
+          "name"
+        ],
+        "title": "KnowledgeBaseInfo",
+        "description": "Knowledge base info."
+      },
+      "KnowledgeBaseListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeBaseInfo"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "KnowledgeBaseListResponse",
+        "description": "List of knowledge bases."
       },
       "KnowledgeSearchRequest": {
         "properties": {
@@ -5475,6 +8025,190 @@
         "title": "MemoryListResponse",
         "description": "Paginated memory list."
       },
+      "MemoryPatch": {
+        "properties": {
+          "episode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MemoryPatch",
+        "description": "Fields to update on an episode."
+      },
+      "MemoryUpdateReason": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "hallucination",
+              "wrong_subject",
+              "wrong_time",
+              "redundant",
+              "missing",
+              "privacy",
+              "style",
+              "other"
+            ],
+            "title": "Code"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "MemoryUpdateReason",
+        "description": "Audit trail for memory update."
+      },
+      "MemoryUpdateRequest": {
+        "properties": {
+          "memory_type": {
+            "type": "string",
+            "const": "episode",
+            "title": "Memory Type"
+          },
+          "memory_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Memory Id"
+          },
+          "patch": {
+            "$ref": "#/components/schemas/MemoryPatch"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemoryUpdateReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "Owner guard: reject if memory belongs to another user"
+          },
+          "app_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "App Id",
+            "default": "default"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "memory_type",
+          "memory_id",
+          "patch"
+        ],
+        "title": "MemoryUpdateRequest",
+        "description": "Edit one episode's narrative, summary, or subject."
+      },
+      "MemoryUpdateResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "memory_type": {
+            "type": "string",
+            "title": "Memory Type",
+            "default": "episode"
+          },
+          "unchanged": {
+            "type": "boolean",
+            "title": "Unchanged",
+            "default": false
+          },
+          "edited_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "MemoryUpdateResponse",
+        "description": "The edited episode, in the same shape as get returns."
+      },
       "MessageItemDTO": {
         "properties": {
           "sender_id": {
@@ -5662,6 +8396,225 @@
         ],
         "title": "OverviewResponse",
         "description": "System overview for the dashboard."
+      },
+      "ProfileEditData": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Category"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Description"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "category",
+          "description"
+        ],
+        "title": "ProfileEditData",
+        "description": "Data for adding or updating a profile item."
+      },
+      "ProfileEditOperation": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "delete"
+            ],
+            "title": "Action"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "explicit_info",
+              "implicit_traits"
+            ],
+            "title": "Type"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProfileEditData"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for add/update, ignored for delete"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id",
+            "description": "Required for update/delete, ignored for add"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action",
+          "type"
+        ],
+        "title": "ProfileEditOperation",
+        "description": "One operation in a profile edit batch."
+      },
+      "ProfileEditRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/ProfileEditOperation"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Operations"
+          },
+          "app_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "App Id",
+            "default": "default"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id",
+          "operations"
+        ],
+        "title": "ProfileEditRequest",
+        "description": "Bulk-edit a single user's profile (Cloud-parity endpoint)."
+      },
+      "ProfileEditResponse": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "applied": {
+            "type": "integer",
+            "title": "Applied"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ProfileEditResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "version",
+          "applied",
+          "results"
+        ],
+        "title": "ProfileEditResponse",
+        "description": "Response for profile edit."
+      },
+      "ProfileEditResult": {
+        "properties": {
+          "op_index": {
+            "type": "integer",
+            "title": "Op Index"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op_index",
+          "status"
+        ],
+        "title": "ProfileEditResult",
+        "description": "Result of a single profile edit operation."
       },
       "PurgeConfirmRequest": {
         "properties": {
@@ -6892,6 +9845,23 @@
         ],
         "title": "SuccessEnvelope[CategoryListResponse]"
       },
+      "SuccessEnvelope_ContextResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ContextResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[ContextResponse]"
+      },
       "SuccessEnvelope_DeleteByIdsResponseData_": {
         "properties": {
           "request_id": {
@@ -6994,6 +9964,23 @@
         ],
         "title": "SuccessEnvelope[DocumentPatchResponse]"
       },
+      "SuccessEnvelope_FeedbackResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FeedbackResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[FeedbackResponse]"
+      },
       "SuccessEnvelope_FlushResponseData_": {
         "properties": {
           "request_id": {
@@ -7010,6 +9997,142 @@
           "data"
         ],
         "title": "SuccessEnvelope[FlushResponseData]"
+      },
+      "SuccessEnvelope_KBCategoryListResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/KBCategoryListResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[KBCategoryListResponse]"
+      },
+      "SuccessEnvelope_KBDocumentDetail_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/KBDocumentDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[KBDocumentDetail]"
+      },
+      "SuccessEnvelope_KBDocumentItem_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/KBDocumentItem"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[KBDocumentItem]"
+      },
+      "SuccessEnvelope_KBDocumentListResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/KBDocumentListResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[KBDocumentListResponse]"
+      },
+      "SuccessEnvelope_KBSearchResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/KBSearchResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[KBSearchResponse]"
+      },
+      "SuccessEnvelope_KBTopicDetail_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/KBTopicDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[KBTopicDetail]"
+      },
+      "SuccessEnvelope_KnowledgeBaseCreateResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/KnowledgeBaseCreateResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[KnowledgeBaseCreateResponse]"
+      },
+      "SuccessEnvelope_KnowledgeBaseListResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/KnowledgeBaseListResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[KnowledgeBaseListResponse]"
       },
       "SuccessEnvelope_KnowledgeSearchResponse_": {
         "properties": {
@@ -7045,6 +10168,23 @@
         ],
         "title": "SuccessEnvelope[MemoryListResponse]"
       },
+      "SuccessEnvelope_MemoryUpdateResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/MemoryUpdateResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[MemoryUpdateResponse]"
+      },
       "SuccessEnvelope_OverviewResponse_": {
         "properties": {
           "request_id": {
@@ -7061,6 +10201,23 @@
           "data"
         ],
         "title": "SuccessEnvelope[OverviewResponse]"
+      },
+      "SuccessEnvelope_ProfileEditResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ProfileEditResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[ProfileEditResponse]"
       },
       "SuccessEnvelope_PurgeJobData_": {
         "properties": {
@@ -7129,6 +10286,40 @@
           "data"
         ],
         "title": "SuccessEnvelope[RequestLogListResponse]"
+      },
+      "SuccessEnvelope_TagsListResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TagsListResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[TagsListResponse]"
+      },
+      "SuccessEnvelope_TagsResponse_": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TagsResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "data"
+        ],
+        "title": "SuccessEnvelope[TagsResponse]"
       },
       "SuccessEnvelope_TaskItem_": {
         "properties": {
@@ -7216,6 +10407,142 @@
           "data"
         ],
         "title": "SuccessEnvelope[dict[str, Any]]"
+      },
+      "TagsAddRequest": {
+        "properties": {
+          "memory_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Memory Id"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Tags"
+          },
+          "app_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "App Id",
+            "default": "default"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "memory_id",
+          "tags"
+        ],
+        "title": "TagsAddRequest",
+        "description": "Add tags to a memory."
+      },
+      "TagsListResponse": {
+        "properties": {
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          },
+          "memory_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Ids"
+          }
+        },
+        "type": "object",
+        "title": "TagsListResponse",
+        "description": "List of tags for a memory or memory ids for a tag."
+      },
+      "TagsRemoveRequest": {
+        "properties": {
+          "memory_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Memory Id"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Tags"
+          },
+          "app_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "App Id",
+            "default": "default"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Project Id",
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "memory_id",
+          "tags"
+        ],
+        "title": "TagsRemoveRequest",
+        "description": "Remove tags from a memory."
+      },
+      "TagsResponse": {
+        "properties": {
+          "memory_id": {
+            "type": "string",
+            "title": "Memory Id"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "memory_id",
+          "count"
+        ],
+        "title": "TagsResponse",
+        "description": "Result of tag add/remove."
       },
       "TaskItem": {
         "properties": {
