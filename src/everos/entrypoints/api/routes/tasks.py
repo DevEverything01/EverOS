@@ -10,14 +10,20 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from everos.core.errors import NotFoundError
-from everos.entrypoints.api.dependencies import ApplicationDep, RequestIdDep
+from everos.entrypoints.api.dependencies import (
+    ApplicationDep,
+    RequestIdDep,
+    require_read,
+)
 from everos.entrypoints.api.schemas import SuccessEnvelope
 from everos.service import TaskItem, TaskPage
 
-router = APIRouter(prefix="/tasks", tags=["tasks"])
+router = APIRouter(
+    prefix="/tasks", tags=["tasks"], dependencies=[Depends(require_read)]
+)
 
 
 @router.get("")

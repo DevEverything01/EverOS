@@ -1130,6 +1130,121 @@ class ObservabilitySettings(BaseModel):
     recall_hit_threshold: float = 0.6
 
 
+class AuthSettings(BaseModel):
+    """``[server.auth]`` — API authentication configuration.
+
+    Controls Bearer/X-Api-Key authentication for the HTTP API. When ``enabled``
+    is true (the default for new installs), every request to ``/api/*`` paths
+    not in ``exempt_paths`` must carry a valid API key. Keys are looked up by
+    sha256 hash; revoked or unknown keys receive HTTP 401.
+
+    ``legacy_open`` is the migration knob: set it to ``true`` in an existing
+    deployment to keep the API open while adding keys, then remove it to
+    require auth. A fresh install has no ``legacy_open`` and auth is on from
+    the start.
+
+    Env binding:
+        EVEROS_AUTH__ENABLED
+        EVEROS_AUTH__LEGACY_OPEN
+        EVEROS_AUTH__BOOTSTRAP_TOKEN  (or EVEROS_BOOTSTRAP_TOKEN env var)
+        EVEROS_AUTH__SESSION_SECRET
+        EVEROS_AUTH__EXEMPT_PATHS
+    """
+
+    enabled: bool = True
+    """Whether authentication is enforced. Default true; set ``legacy_open``
+    to keep existing deployments open during migration."""
+    legacy_open: bool = False
+    """When true, auth is disabled even if ``enabled`` is true. Intended for
+    existing deployments migrating to auth."""
+    bootstrap_token: SecretStr | None = None
+    """If set and no API keys exist yet, this token is accepted on the first
+    request and creates the initial admin key. Also read from
+    ``EVEROS_BOOTSTRAP_TOKEN`` env var."""
+    session_secret: SecretStr | None = None
+    """Secret for signing session cookies. When unset, a random secret is
+    generated once and persisted in ``control.db`` (``control_settings``
+    row ``auth.session_secret``), so sessions survive restarts."""
+    trust_forwarded_proto: bool = False
+    """Honour ``X-Forwarded-Proto: https`` when deciding the session cookie's
+    ``Secure`` flag. Enable only behind a TLS-terminating reverse proxy."""
+    exempt_paths: list[str] = Field(
+        default_factory=lambda: [
+            "/health",
+            "/metrics",
+            "/docs",
+            "/openapi.json",
+            "/redoc",
+            "/console",
+        ]
+    )
+    """Paths that do not require authentication. Prefix match: ``/console``
+    exempts ``/console``, ``/console/``, ``/console/assets/foo.js``, etc."""
+
+    @model_validator(mode="after")
+    def _bootstrap_env_alias(self) -> AuthSettings:
+        """Honour the short ``EVEROS_BOOTSTRAP_TOKEN`` env var.
+
+        The documented binding is ``EVEROS_AUTH__BOOTSTRAP_TOKEN``; the short
+        form is the one operators actually export, so accept it when the
+        nested variable is absent.
+        """
+        if self.bootstrap_token is None:
+            alias = os.environ.get("EVEROS_BOOTSTRAP_TOKEN")
+            if alias:
+                self.bootstrap_token = SecretStr(alias)
+        return self
+
+    @property
+    def auth_required(self) -> bool:
+        """True when requests must authenticate (enabled and not legacy_open)."""
+        return self.enabled and not self.legacy_open
+
+
+class RequestLogsSettings(BaseModel):
+    """``[server.logs]`` — request log retention configuration.
+
+    Env binding:
+        EVEROS_REQUEST_LOGS__RETAIN_DAYS
+        EVEROS_REQUEST_LOGS__TRUST_FORWARDED_FOR
+        EVEROS_REQUEST_LOGS__QUEUE_SIZE
+    """
+
+    retain_days: int = Field(default=14, ge=1)
+    """Days to retain request logs; older entries are pruned on startup and
+    hourly thereafter."""
+    trust_forwarded_for: bool = False
+    """Record the client from ``X-Forwarded-For`` (left-most hop, validated as
+    an IP address). Enable only behind a reverse proxy that sets the header;
+    by default the socket peer address is recorded and the header ignored."""
+    queue_size: int = Field(default=1000, ge=1)
+    """Bound of the in-memory queue feeding the request-log writer. When full,
+    new records are dropped and counted (``request_log_dropped``)."""
+
+
+def _dev_mode() -> bool:
+    """True when the process runs with ``ENV=DEV`` (case-insensitive)."""
+    return os.environ.get("ENV", "prod").upper() == "DEV"
+
+
+class ServerSettings(BaseModel):
+    """``[server]`` — HTTP server configuration.
+
+    Env binding:
+        EVEROS_SERVER__DOCS_ENABLED
+        EVEROS_SERVER__CONSOLE_ENABLED
+    """
+
+    docs_enabled: bool = Field(default_factory=lambda: _dev_mode())
+    """Enable OpenAPI docs endpoints (/docs, /redoc, /openapi.json).
+    Default: on only when ``ENV=DEV``; production does not expose the API
+    schema unless ``[server] docs_enabled = true`` is set explicitly."""
+
+    console_enabled: bool = True
+    """Enable the bundled web console at /console.
+    Default true; set false to disable the console entirely."""
+
+
 class PurgeSettings(BaseModel):
     """``[purge]`` — online clearing of a project, an app or the whole root.
 
@@ -1176,6 +1291,9 @@ class Settings(BaseSettings):
     logging: LoggingSettings = LoggingSettings()
     observability: ObservabilitySettings = ObservabilitySettings()
     purge: PurgeSettings = PurgeSettings()
+    auth: AuthSettings = AuthSettings()
+    request_logs: RequestLogsSettings = RequestLogsSettings()
+    server: ServerSettings = Field(default_factory=ServerSettings)
 
     model_config = SettingsConfigDict(
         env_prefix="EVEROS_",

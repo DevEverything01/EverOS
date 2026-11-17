@@ -24,7 +24,12 @@ from fastapi import APIRouter, Depends, Path, Query, Response, UploadFile
 from fastapi.params import Form
 
 from everos.core.utils.datetime import to_display_tz
-from everos.entrypoints.api.dependencies import ApplicationDep, RequestIdDep
+from everos.entrypoints.api.dependencies import (
+    ApplicationDep,
+    RequestIdDep,
+    require_read,
+    require_write,
+)
 from everos.entrypoints.api.routes.purge import REFUSED_DURING_PURGE
 from everos.entrypoints.api.schemas import (
     AppScopeId,
@@ -88,7 +93,7 @@ _PathTopicId = Annotated[str, Path(pattern=_TOPIC_ID_PATTERN)]
 @router.post(
     "/documents",
     status_code=201,
-    dependencies=[Depends(_require_knowledge_capabilities)],
+    dependencies=[Depends(require_write), Depends(_require_knowledge_capabilities)],
     responses=REFUSED_DURING_PURGE,
 )
 # FastAPI requires flat Form/Query params — ≤5 positional rule exempted.
@@ -120,7 +125,7 @@ async def create_document_route(
 @router.put(
     "/documents/{doc_id}",
     status_code=200,
-    dependencies=[Depends(_require_knowledge_capabilities)],
+    dependencies=[Depends(require_write), Depends(_require_knowledge_capabilities)],
     responses=REFUSED_DURING_PURGE,
 )
 # FastAPI requires flat Form/Query params — ≤5 positional rule exempted.
@@ -151,7 +156,9 @@ async def replace_document_route(
     )
 
 
-@router.delete("/documents/{doc_id}", response_model=None)
+@router.delete(
+    "/documents/{doc_id}", response_model=None, dependencies=[Depends(require_write)]
+)
 async def delete_document_route(
     app: ApplicationDep,
     request_id: RequestIdDep,
@@ -174,7 +181,7 @@ async def delete_document_route(
     )
 
 
-@router.get("/documents")
+@router.get("/documents", dependencies=[Depends(require_read)])
 # FastAPI requires flat Form/Query params — ≤5 positional rule exempted.
 async def list_documents_route(
     app: ApplicationDep,
@@ -202,7 +209,7 @@ async def list_documents_route(
     )
 
 
-@router.get("/documents/{doc_id}")
+@router.get("/documents/{doc_id}", dependencies=[Depends(require_read)])
 async def get_document_route(
     app: ApplicationDep,
     request_id: RequestIdDep,
@@ -217,7 +224,7 @@ async def get_document_route(
     )
 
 
-@router.get("/topics/{topic_id}")
+@router.get("/topics/{topic_id}", dependencies=[Depends(require_read)])
 async def get_topic_route(
     app: ApplicationDep,
     request_id: RequestIdDep,
@@ -234,7 +241,7 @@ async def get_topic_route(
 
 @router.post(
     "/search",
-    dependencies=[Depends(_require_knowledge_capabilities)],
+    dependencies=[Depends(require_read), Depends(_require_knowledge_capabilities)],
 )
 async def search_knowledge_route(
     app: ApplicationDep,
@@ -256,7 +263,7 @@ async def search_knowledge_route(
     )
 
 
-@router.get("/categories")
+@router.get("/categories", dependencies=[Depends(require_read)])
 async def list_categories_route(
     app: ApplicationDep,
     request_id: RequestIdDep,
@@ -279,7 +286,11 @@ async def list_categories_route(
     )
 
 
-@router.patch("/documents/{doc_id}", responses=REFUSED_DURING_PURGE)
+@router.patch(
+    "/documents/{doc_id}",
+    responses=REFUSED_DURING_PURGE,
+    dependencies=[Depends(require_write)],
+)
 async def patch_document_route(
     app: ApplicationDep,
     request_id: RequestIdDep,

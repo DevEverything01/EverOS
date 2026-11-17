@@ -45,6 +45,7 @@ class ErrorCode(StrEnum):
     PURGE_IN_PROGRESS = "PURGE_IN_PROGRESS"
     CROSS_SITE_REFUSED = "CROSS_SITE_REFUSED"
     PURGE_NONCE_INVALID = "PURGE_NONCE_INVALID"
+    FORBIDDEN = "FORBIDDEN"
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +195,18 @@ class PurgeNonceInvalidError(DomainError):
     Nothing was deleted. The API layer maps it to HTTP 404
     ``PURGE_NONCE_INVALID``; the caller requests a new nonce.
     """
+
+
+class InvalidMemoryIdError(DomainError):
+    """A memory id does not have the ``<owner_id>_<entry_id>`` shape (HTTP 400)."""
+
+
+class MemoryOwnerMismatchError(DomainError):
+    """The memory belongs to a different owner than the caller named (HTTP 403)."""
+
+
+class MemoryUpdateFailedError(AppError):
+    """A located memory could not be rewritten in place (HTTP 500)."""
 
 
 class DeletionIncompleteError(AppError):

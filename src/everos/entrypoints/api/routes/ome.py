@@ -1,16 +1,24 @@
-"""OME trigger route — manually invoke a registered strategy."""
+"""OME trigger route — manually invoke a registered strategy.
+
+A strategy run writes memory and spends LLM calls, so the route needs
+``memory:write`` (``admin`` implies it).
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from everos.entrypoints.api.dependencies import ApplicationDep
+from everos.entrypoints.api.dependencies import ApplicationDep, require_write
 from everos.entrypoints.api.schemas import RunSummary, TriggerRequest, TriggerResponse
 
 router = APIRouter(prefix="/ome", tags=["ome"])
 
 
-@router.post("/trigger", response_model=TriggerResponse)
+@router.post(
+    "/trigger",
+    response_model=TriggerResponse,
+    dependencies=[Depends(require_write)],
+)
 async def trigger(req: TriggerRequest, app: ApplicationDep) -> TriggerResponse:
     """Manually trigger a registered OME strategy and wait for its runs to
     settle. Returns without waiting for the LanceDB index — the response

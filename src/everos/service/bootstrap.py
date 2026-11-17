@@ -107,6 +107,7 @@ from everos.infra.persistence.markdown import (
     MarkdownScopePurger,
 )
 from everos.infra.persistence.sqlite import (
+    ControlStore,
     SqliteDatabase,
     SqliteKnowledgeCatalog,
     SqliteRepos,
@@ -180,6 +181,7 @@ class Application:
     ops: OpsService
     purge: PurgeService
     capabilities: Capabilities
+    control: ControlStore
     _settings: Settings = dataclasses.field(repr=False)
     _root: MemoryRoot = dataclasses.field(repr=False)
     _admin: CascadeAdmin = dataclasses.field(repr=False)
@@ -229,6 +231,8 @@ class Application:
         self._root.ensure()
         tables = await self._admin.create_schema()
         logger.info("sqlite_schema_ready", tables=tables)
+        await self.control.create_schema()
+        logger.info("control_schema_ready")
         # Before anything replays: every purge's tombstone is known before
         # OME crash recovery and the async queue re-run what they hold.
         await self.purge.restore()
@@ -281,6 +285,7 @@ class Application:
             await self._stack.aclose()
             await _shielded("index", self._admin.close_index)()
             await _shielded("sqlite", self._admin.dispose)()
+            await _shielded("control", self.control.dispose)()
             shutdown_tracing()
         finally:
             self._root_lock.release()
@@ -348,6 +353,7 @@ def build_application(
     providers = providers or build_providers(settings)
     tokenizer = build_tokenizer(settings.tokenizer)
     root = MemoryRoot(resolve_root())
+    control_store = ControlStore(root.control_db, settings.sqlite)
     database = SqliteDatabase(root, settings.sqlite)
     sqlite = SqliteRepos.over(database)
     index = build_derived_index(settings, root)
@@ -442,6 +448,7 @@ def build_application(
         ),
         purge=purge,
         capabilities=capabilities,
+        control=control_store,
         _settings=settings,
         _root=root,
         _admin=admin,

@@ -20,6 +20,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from everos.entrypoints.api.dependencies import require_write
 from everos.entrypoints.api.routes.ome import router as ome_router
 from everos.infra.ome.config import OMEConfig
 from everos.infra.ome.engine import OfflineEngine
@@ -37,6 +38,9 @@ async def _client_for(
     app = FastAPI()
     app.state.application = make_application(ops=make_ops(engine=engine))
     app.include_router(ome_router, prefix="/api/v1")
+    # No auth middleware here (scope checks fail closed without it); this
+    # suite pins trigger behaviour, test_ops_route_scopes.py pins its scope.
+    app.dependency_overrides[require_write] = lambda: None
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 
 

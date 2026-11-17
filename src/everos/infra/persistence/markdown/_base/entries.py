@@ -52,6 +52,7 @@ Cross-user uniqueness is handled at the database layer via a composite
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -148,6 +149,12 @@ class Entry:
     body: str
     start: int
     end: int
+
+    @property
+    def version(self) -> str:
+        """Digest of the entry's content: the optimistic-concurrency token a
+        read-modify-write compares before rewriting the entry."""
+        return hashlib.sha256(self.body.encode("utf-8")).hexdigest()
 
     def as_structured(self) -> StructuredEntry:
         """Parse my body as audit-form and return a :class:`StructuredEntry`.

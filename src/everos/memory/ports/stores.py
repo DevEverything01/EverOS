@@ -26,16 +26,19 @@ __all__ = [
     "OwnerDirStore",
     "ProfileStore",
     "ReflectionReportStore",
+    "ReplaceOutcome",
     "SenderNameStore",
     "SessionBufferStore",
     "SessionPurgeStore",
     "SourceCheck",
+    "VersionedEpisode",
     "WrittenDocument",
 ]
 
 import datetime as dt
 from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any, Final, Protocol, final, runtime_checkable
 
 from everos.memory.models import (
@@ -96,6 +99,26 @@ NO_SOURCE_CHECK: Final = NoSourceCheck()
 # ── User-track daily logs ────────────────────────────────────────────────
 
 
+class ReplaceOutcome(StrEnum):
+    """What an in-place episode rewrite did."""
+
+    REPLACED = "replaced"
+    CONFLICT = "conflict"  # the entry changed since ``expected_version`` was read
+    MISSING = "missing"  # no such entry (or file) any more
+
+
+@dataclass(frozen=True)
+class VersionedEpisode:
+    """An episode as read for an update, with the version to compare on write.
+
+    ``version`` is an opaque digest of the stored entry; it changes whenever
+    the entry's content does.
+    """
+
+    stored: Stored[Episode]
+    version: str
+
+
 @runtime_checkable
 class EpisodeStore(Protocol):
     """Episode truth: append-only daily logs per owner.
@@ -150,6 +173,28 @@ class EpisodeStore(Protocol):
         self, scope: Scope, entry_ids: Collection[str]
     ) -> list[Stored[Episode]]:
         """The episodes of ``entry_ids`` still in md (no lock)."""
+        ...
+
+    async def read_versioned(
+        self, scope: Scope, entry_id: str
+    ) -> VersionedEpisode | None:
+        """One episode plus its version, for a read-modify-write (no lock)."""
+        ...
+
+    async def replace(
+        self,
+        scope: Scope,
+        entry_id: str,
+        episode: Episode,
+        *,
+        expected_version: str | None = None,
+    ) -> ReplaceOutcome:
+        """Rewrite one entry in place, keeping its id and daily file.
+
+        Optimistic concurrency: with ``expected_version`` set, the entry is
+        compared under the file lock and left untouched (``CONFLICT``) when it
+        no longer has that version; the caller re-reads and re-applies.
+        """
         ...
 
     async def remove_session(self, scope: Scope, session_id: str) -> list[MemoryRef]:

@@ -58,6 +58,18 @@ def _isolate_everos_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     monkeypatch.setenv("EVEROS_ROOT", str(tmp_path))
 
 
+@pytest.fixture(autouse=True)
+def _disable_auth_for_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disable API authentication for existing tests.
+
+    Most tests were written before the auth middleware existed and do not
+    pass API keys. Setting ``EVEROS_AUTH__LEGACY_OPEN=true`` keeps them
+    working. Tests that explicitly test authentication override this in
+    their own fixtures.
+    """
+    monkeypatch.setenv("EVEROS_AUTH__LEGACY_OPEN", "true")
+
+
 def _reset_table_write_locks() -> None:
     """Drop the per-table write-lock pools between tests.
 

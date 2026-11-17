@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 from typing import Annotated, Any
-from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Path, Request
 
 from everos.core.errors import CrossSiteRefusedError
-from everos.entrypoints.api.dependencies import ApplicationDep, RequestIdDep
+from everos.entrypoints.api.dependencies import (
+    ApplicationDep,
+    RequestIdDep,
+    require_read,
+    require_write,
+)
+from everos.entrypoints.api.same_origin import is_cross_site
 from everos.entrypoints.api.schemas import (
     ErrorResponse,
     PurgeConfirmRequest,
@@ -35,12 +40,12 @@ def _refuse_cross_site(request: Request) -> None:
 
     There is no authentication and CORS allows any origin by default, so any
     page the user opens could read a nonce and confirm it. Browsers send
-    ``Origin`` with these requests; curl, SDKs, MCP and the plugins send
-    none and pass, and so does a page this server serves itself.
+    ``Origin`` (or ``Referer``) with these requests; curl, SDKs, MCP and the
+    plugins send neither and pass, and so does a page this server serves
+    itself. The check is :func:`~everos.entrypoints.api.same_origin.is_cross_site`,
+    the same one the auth middleware applies to session-cookie writes.
     """
-    origin = request.headers.get("origin")
-    host = request.headers.get("host", "")
-    if origin is not None and urlsplit(origin).netloc.lower() != host.lower():
+    if is_cross_site(request):
         raise CrossSiteRefusedError(
             "a purge is refused from a browser page of another site; "
             "send it from curl, an SDK or a plugin"
@@ -61,7 +66,7 @@ _PathJobId = Annotated[
 
 @router.post(
     "/purge",
-    dependencies=[Depends(_refuse_cross_site)],
+    dependencies=[Depends(require_write), Depends(_refuse_cross_site)],
     responses=_CROSS_SITE_RESPONSE,
 )
 async def request_purge(
@@ -81,7 +86,7 @@ async def request_purge(
 @router.post(
     "/purge/confirm",
     status_code=202,
-    dependencies=[Depends(_refuse_cross_site)],
+    dependencies=[Depends(require_write), Depends(_refuse_cross_site)],
     responses={
         **_CROSS_SITE_RESPONSE,
         404: {
@@ -109,6 +114,7 @@ async def confirm_purge(
 @router.get(
     "/purge/{job_id}",
     responses={404: {"model": ErrorResponse, "description": "No such job"}},
+    dependencies=[Depends(require_read)],
 )
 async def get_purge(
     job_id: _PathJobId, app: ApplicationDep, request_id: RequestIdDep

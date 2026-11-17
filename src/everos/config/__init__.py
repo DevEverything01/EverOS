@@ -16,6 +16,7 @@ loader / merger / env reader).
 from .hints import missing_config_error as missing_config_error
 from .settings import LLM_TASK_DEFAULTS as LLM_TASK_DEFAULTS
 from .settings import AsyncQueueSettings as AsyncQueueSettings
+from .settings import AuthSettings as AuthSettings
 from .settings import BoundaryDetectionSettings as BoundaryDetectionSettings
 from .settings import CascadeSettings as CascadeSettings
 from .settings import DeciderSettings as DeciderSettings
@@ -33,6 +34,7 @@ from .settings import MilvusSettings as MilvusSettings
 from .settings import MultimodalSettings as MultimodalSettings
 from .settings import OmeSettings as OmeSettings
 from .settings import PurgeSettings as PurgeSettings
+from .settings import RequestLogsSettings as RequestLogsSettings
 from .settings import RerankSettings as RerankSettings
 from .settings import Settings as Settings
 from .settings import SqliteSettings as SqliteSettings
@@ -43,6 +45,7 @@ from .settings import resolve_root as resolve_root
 __all__ = [
     "LLM_TASK_DEFAULTS",
     "AsyncQueueSettings",
+    "AuthSettings",
     "BoundaryDetectionSettings",
     "DeciderSettings",
     "EmbeddingSettings",
@@ -59,6 +62,7 @@ __all__ = [
     "MultimodalSettings",
     "OmeSettings",
     "PurgeSettings",
+    "RequestLogsSettings",
     "RerankSettings",
     "Settings",
     "SqliteSettings",

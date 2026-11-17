@@ -6,12 +6,12 @@ lifespan, and registers the public routes (``/health``, ``/metrics``).
 The lifespan owns one :class:`~everos.service.Application`: it starts it on
 startup, keeps it on ``app.state.application`` (the only object routes read,
 via :func:`everos.entrypoints.api.dependencies.application`) and closes it on
-shutdown.
+shutdown. The Application's ``control`` store provides authentication and
+control-plane operations.
 """
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -25,21 +25,30 @@ from everos.entrypoints.api.middleware import (
     DEFAULT_CORS_ALLOW_HEADERS,
     DEFAULT_CORS_ALLOW_METHODS,
     DEFAULT_CORS_ORIGINS,
+    AuthMiddleware,
     ProfileMiddleware,
     PrometheusMiddleware,
     RequestIdMiddleware,
+    RequestLoggingMiddleware,
+    RequestLogSink,
     WriteTrackingMiddleware,
+    effective_allow_credentials,
 )
 from everos.service import Application, build_application
 
 from .exception_handlers import register_handlers
 from .routes import (
+    admin,
+    auth,
     cascade,
+    console,
     delete,
     get,
     health,
     knowledge,
+    knowledge_bases,
     memorize,
+    memory_edit,
     metrics,
     ome,
     purge,
@@ -48,11 +57,6 @@ from .routes import (
 )
 
 logger = get_logger(__name__)
-
-
-def _docs_enabled() -> bool:
-    """Enable docs endpoints (/docs, /redoc, /openapi.json) only in dev."""
-    return os.environ.get("ENV", "prod").upper() == "DEV"
 
 
 def create_app(
@@ -73,23 +77,29 @@ def create_app(
             over fakes). It is reachable by routes at once, and the lifespan
             starts and closes it like one it built itself.
         cors_origins: Allowed CORS origins (default: ``["*"]``).
-        cors_allow_credentials: Whether to allow credentials (default: True).
+        cors_allow_credentials: Whether to allow credentials (default: False).
+            Ignored -- forced off, with a warning -- when the origins include
+            ``"*"``.
         cors_allow_methods: Allowed CORS methods (default: ``["*"]``).
         cors_allow_headers: Allowed CORS headers (default: ``["*"]``).
 
     Returns:
         FastAPI: Configured application instance.
     """
-    enable_docs = _docs_enabled()
+    effective_settings = settings or load_settings()
+    enable_docs = effective_settings.server.docs_enabled
 
     @asynccontextmanager
     async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
-        built = application or build_application(settings or load_settings())
+        built = application or build_application(effective_settings)
         fastapi_app.state.application = built
+        fastapi_app.state.control_store = built.control
+
         try:
             await built.start()
             yield
         finally:
+            await request_logging.drain()
             await built.aclose()
 
     from everos import __version__
@@ -104,8 +114,11 @@ def create_app(
         openapi_url="/openapi.json" if enable_docs else None,
     )
 
+    # Routes and the auth middleware read the same [auth] settings.
+    app.state.auth_settings = effective_settings.auth
     if application is not None:
         app.state.application = application
+        app.state.control_store = application.control
 
     # Exception handlers
     register_handlers(app)
@@ -113,11 +126,29 @@ def create_app(
     # Middleware order: earlier `add_middleware` calls become inner, later ones outer.
     # Write tracking innermost: it stamps the request the handler runs in.
     app.add_middleware(WriteTrackingMiddleware)
+    # Request logging: records each /api/ request to the control-plane audit log.
+    request_logging = RequestLogSink(effective_settings.request_logs)
+    app.state.request_log_sink = request_logging
+    app.add_middleware(
+        RequestLoggingMiddleware,
+        settings=effective_settings.request_logs,
+        sink=request_logging,
+    )
+    # Auth middleware: validates API keys and sets request.state.api_key_id/scopes.
+    app.add_middleware(AuthMiddleware, settings=effective_settings.auth)
     # CORS next (matches base_app.py legacy pattern).
+    origins = cors_origins or DEFAULT_CORS_ORIGINS
+    allow_credentials = effective_allow_credentials(origins, cors_allow_credentials)
+    if cors_allow_credentials and not allow_credentials:
+        logger.warning(
+            "cors_credentials_disabled",
+            reason="allow_credentials is incompatible with the '*' origin; "
+            "list explicit origins to allow credentials",
+        )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cors_origins or DEFAULT_CORS_ORIGINS,
-        allow_credentials=cors_allow_credentials,
+        allow_origins=origins,
+        allow_credentials=allow_credentials,
         allow_methods=cors_allow_methods or DEFAULT_CORS_ALLOW_METHODS,
         allow_headers=cors_allow_headers or DEFAULT_CORS_ALLOW_HEADERS,
     )
@@ -142,9 +173,11 @@ def create_app(
     app.include_router(search.router, prefix="/api/v1")
     app.include_router(get.router, prefix="/api/v1")
     app.include_router(delete.router, prefix="/api/v1")
+    app.include_router(memory_edit.router, prefix="/api/v1")
     app.include_router(purge.router, prefix="/api/v1")
     app.include_router(ome.router, prefix="/api/v1")
     app.include_router(knowledge.router, prefix="/api/v1")
+    app.include_router(knowledge_bases.router, prefix="/api/v1")
     # Operational, not a memory API: it stops a background subsystem. Mounted on
     # both prefixes so a caller does not have to know which one this build serves.
     app.include_router(cascade.router, prefix="/api/v1")
@@ -154,11 +187,28 @@ def create_app(
     app.include_router(search.router, prefix="/api/v2")
     app.include_router(get.router, prefix="/api/v2")
     app.include_router(delete.router, prefix="/api/v2")
+    app.include_router(memory_edit.router, prefix="/api/v2")
     app.include_router(purge.router, prefix="/api/v2")
     app.include_router(ome.router, prefix="/api/v2")
     app.include_router(knowledge.router, prefix="/api/v2")
+    app.include_router(knowledge_bases.router, prefix="/api/v2")
     app.include_router(cascade.router, prefix="/api/v2")
     app.include_router(tasks.router, prefix="/api/v2")
+    # Auth routes — v2 only (new feature, no legacy alias needed).
+    app.include_router(auth.router, prefix="/api/v2")
+    # Admin routes — v2 only (new feature, no legacy alias needed).
+    app.include_router(admin.router, prefix="/api/v2")
 
-    logger.info("app_created", docs_enabled=enable_docs)
+    # Console — bundled web UI served at /console when enabled.
+    enable_console = effective_settings.server.console_enabled
+    if enable_console:
+        app.include_router(console.router)
+
+    auth_required = effective_settings.auth.auth_required
+    logger.info(
+        "app_created",
+        docs_enabled=enable_docs,
+        console_enabled=enable_console,
+        auth_required=auth_required,
+    )
     return app

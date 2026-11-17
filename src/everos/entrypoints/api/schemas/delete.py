@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import datetime as _dt
-import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from everos.core.utils.ids import EPISODE_MEMORY_ID, is_path_safe_segment
 
 from .ids import (
     PATH_SAFE_CHARSET,
@@ -15,8 +16,6 @@ from .ids import (
     ProjectScopeId,
     SessionId,
 )
-
-_EPISODE_ID = re.compile(r"(?P<owner>[a-zA-Z0-9_.@+-]{1,128})_ep_(?P<day>\d{8})_\d+")
 
 
 class DeleteRequest(BaseModel):
@@ -111,8 +110,8 @@ class DeleteByIdsRequest(BaseModel):
     @classmethod
     def _episode_ids(cls, ids: list[str]) -> list[str]:
         for memory_id in ids:
-            match = _EPISODE_ID.fullmatch(memory_id)
-            if match is None or match["owner"] in (".", ".."):
+            match = EPISODE_MEMORY_ID.fullmatch(memory_id)
+            if match is None or not is_path_safe_segment(match["owner"]):
                 raise ValueError(f"not an episode memory id: {memory_id!r}")
             try:
                 _dt.date(

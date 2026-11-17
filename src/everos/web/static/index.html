@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>EverOS Console</title>
+<link rel="stylesheet" href="/console/font.css">
+<link rel="stylesheet" href="/console/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23f5c542'/></svg>">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#17140c" stroke-width="1.8"><circle cx="8" cy="12" r="4.2"/><circle cx="16" cy="12" r="4.2"/></svg>
+      EverOS <span class="tag">SELF-HOSTED</span>
+    </div>
+    <button class="space"><span id="spaceName">default_space</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a857d" stroke-width="2"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>
+    </button>
+
+    <div class="sec">Memory Space</div>
+    <nav class="nav">
+      <a href="#/dashboard" data-ico="grid"><span>Dashboard</span></a>
+      <a href="#/memory-bank" data-ico="bank"><span>Memory Bank</span></a>
+      <a href="#/knowledge" data-ico="doc"><span>Knowledge</span></a>
+    </nav>
+    <div class="sec">Setup</div>
+    <nav class="nav">
+      <a href="#/playground" data-ico="code"><span>Playground</span></a>
+      <a href="#/keys" data-ico="key"><span>API Keys</span></a>
+      <a href="#/settings" data-ico="plug"><span>Settings</span></a>
+    </nav>
+    <div class="sec">Activity</div>
+    <nav class="nav">
+      <a href="#/logs" data-ico="log"><span>Request Logs</span></a>
+    </nav>
+    <div class="sec">More</div>
+    <nav class="nav">
+      <a href="/docs" target="_blank" data-ico="doc" id="apiDocsLink" data-style="display:none"><span>API Docs</span></a>
+    </nav>
+
+    <div class="grow"></div>
+    <div class="offer" id="quotaBox" data-style="display:none">
+      <b>QUOTA</b>
+      <p id="quotaInfo">Usage data loading...</p>
+      <a href="#/dashboard">View usage details</a>
+    </div>
+    <div class="me">
+      <div class="avatar">S</div>
+      <div class="who"><b id="userName">Self-hosted</b><span id="userVersion">v1.7.0</span></div>
+      <button class="up" id="logoutBtn" data-style="display:none">Logout</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="promo" id="promo">
+      <b>SELF-HOSTED</b>
+      <span>EverOS Console - local md-first memory framework</span>
+      <a href="#/playground">Try the Playground</a>
+      <button class="x" data-act="dismissPromo">x</button>
+    </div>
+    <div class="wrap" id="view"><div class="spin">Loading...</div></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" data-style="display:none">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Confirm</h3>
+      <button class="modal-close" id="modalClose">x</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<div class="login-overlay" id="loginOverlay" data-style="display:none">
+  <div class="login-box">
+    <div class="brand" data-style="justify-content:center;padding:0 0 24px">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#17140c" stroke-width="1.8"><circle cx="8" cy="12" r="4.2"/><circle cx="16" cy="12" r="4.2"/></svg>
+      EverOS
+    </div>
+    <h2>Sign in to Console</h2>
+    <p>Enter your API key to access the EverOS console.</p>
+    <input type="password" id="loginKey" placeholder="eos_xxxxxxxx_..." class="input" data-style="width:100%;margin:16px 0">
+    <div id="loginError" data-style="color:#c53929;font-size:12px;margin-bottom:12px;display:none"></div>
+    <button id="loginBtn" class="select" data-style="width:100%;background:#f5c542;border-color:#e7b93a;font-weight:600">Sign In</button>
+    <p data-style="margin-top:16px;font-size:12px;color:#8a857d">
+      No key yet? Create one with <code>everos key create</code> or use the bootstrap token.
+    </p>
+  </div>
+</div>
+
+<script src="/console/app.js"></script>
+</body>
+</html>

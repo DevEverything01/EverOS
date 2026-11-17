@@ -16,6 +16,7 @@ seed and inspect. :func:`make_deps` assembles them into a
 from __future__ import annotations
 
 from .application import FakeOmeLock as FakeOmeLock
+from .application import StubControlStore as StubControlStore
 from .application import StubMemoryService as StubMemoryService
 from .application import StubOpsService as StubOpsService
 from .application import StubPurgeService as StubPurgeService
@@ -115,6 +116,7 @@ __all__ = [
     "ScriptedReplayEngine",
     "Storage",
     "StorageView",
+    "StubControlStore",
     "StubMemoryService",
     "StubOpsService",
     "StubPurgeService",
