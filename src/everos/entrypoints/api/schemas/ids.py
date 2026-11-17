@@ -30,7 +30,8 @@ from typing import Annotated
 
 from pydantic import AfterValidator
 
-PATH_SAFE_CHARSET = r"^[a-zA-Z0-9_.@+-]+$"
+from everos.core.utils.ids import PATH_SAFE_CHARSET
+
 _PATH_TRAVERSAL_TOKENS = frozenset({".", ".."})
 
 

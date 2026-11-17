@@ -6,7 +6,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from everos.core.errors import NotFoundError
 from everos.memory.models import ExplicitInfoItem, ImplicitTraitItem, Profile
+from everos.memory.ports import ReplaceOutcome, VersionedEpisode
 from everos.service.memory._edit import (
     EditOperation,
     EpisodePatch,
@@ -205,8 +207,10 @@ class TestUpdateEpisode:
         mock_stored.item = mock_episode
         mock_stored.ref = MagicMock(entry_id="ep_20231115_001")
 
-        mock_stores.episode.read_many.return_value = [mock_stored]
-        mock_stores.episode.replace.return_value = True
+        mock_stores.episode.read_versioned.return_value = VersionedEpisode(
+            stored=mock_stored, version="v0"
+        )
+        mock_stores.episode.replace.return_value = ReplaceOutcome.REPLACED
 
         result = await update_episode(
             mock_stores,
@@ -220,6 +224,9 @@ class TestUpdateEpisode:
         assert result.id == "user1_ep_20231115_001"
         assert result.edited_at is not None
         mock_stores.episode.replace.assert_awaited_once()
+        assert mock_stores.episode.replace.await_args.kwargs == {
+            "expected_version": "v0"
+        }
         mock_stores.episode.remove.assert_not_called()
         mock_stores.episode.append.assert_not_called()
 
@@ -240,7 +247,9 @@ class TestUpdateEpisode:
         mock_stored.item = mock_episode
         mock_stored.ref = MagicMock(entry_id="ep_20231115_001")
 
-        mock_stores.episode.read_many.return_value = [mock_stored]
+        mock_stores.episode.read_versioned.return_value = VersionedEpisode(
+            stored=mock_stored, version="v0"
+        )
 
         result = await update_episode(
             mock_stores,
@@ -254,15 +263,14 @@ class TestUpdateEpisode:
         mock_stores.episode.remove.assert_not_called()
 
     async def test_update_nonexistent_episode(self, mock_stores):
-        """Updating a non-existent episode returns unchanged=True."""
-        mock_stores.episode.read_many.return_value = []
+        """A missing episode is NotFound, not a silent ``unchanged``."""
+        mock_stores.episode.read_versioned.return_value = None
 
-        result = await update_episode(
-            mock_stores,
-            app_id="default",
-            project_id="default",
-            memory_id="user1_ep_20231115_001",
-            patch=EpisodePatch(summary="New summary"),
-        )
-
-        assert result.unchanged
+        with pytest.raises(NotFoundError):
+            await update_episode(
+                mock_stores,
+                app_id="default",
+                project_id="default",
+                memory_id="user1_ep_20231115_001",
+                patch=EpisodePatch(summary="New summary"),
+            )

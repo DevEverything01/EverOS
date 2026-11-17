@@ -65,6 +65,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`scripts/smoke_console.sh`** — integration smoke test for the console
   and cloud-parity API features.
 
+### Changed
+
+- **`GET /api/v2/admin/usage?range=7d|30d` covers exactly the last 7 / 30
+  days.** The range is today (UTC) plus the 6 / 29 days before it, one daily
+  bucket each. It used to count both the start and the end day, so `7d`
+  returned 8 days and `30d` 31; totals over the same range drop by one day's
+  counts.
+- **Read routes require `memory:read`.** `/memory/search`, `/get`,
+  `/context`, the feedback, tag, task and purge-status reads and the
+  knowledge reads now check the scope (`admin` implies it; `memory:write`
+  does not). `POST /cascade/quiesce` requires `admin` and `POST
+  /ome/trigger` `memory:write`.
+- **Console session writes must be same-origin.** A `POST`/`PUT`/`PATCH`/
+  `DELETE` authenticated by the console cookie whose `Origin` / `Referer`
+  is another site gets `403 CROSS_SITE_REFUSED`; key-header requests are
+  unaffected.
+- **`POST /memory/update` refuses an empty `patch`** (`422`), and a
+  `memory_id` whose owner is not a single path-safe segment (`400`).
+  Concurrent updates of one episode no longer overwrite each other.
+- **Bootstrap token** grants nothing once its claim is taken, even after
+  every key is revoked; if the secret file cannot be written the new key is
+  revoked and the claim released so the bootstrap can be retried.
+- **`control.db`** (and its `-wal` / `-shm`) is kept at mode 0600.
+
 ## [1.7.0] - 2026-11-13
 
 EverOS 1.7.0 moves onto the everalgo 2026-11 line, all final releases. The

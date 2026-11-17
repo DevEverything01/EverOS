@@ -48,7 +48,7 @@ class TestRequestLogsEndpoints:
                 headers={"X-Api-Key": "test_admin_key"},
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
 
     async def test_list_request_logs_with_data(
         self, app_with_admin, control_store: ControlStore
@@ -71,7 +71,7 @@ class TestRequestLogsEndpoints:
                 headers={"X-Api-Key": "test_admin_key"},
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
 
 
 class TestUsageEndpoint:
@@ -90,7 +90,7 @@ class TestUsageEndpoint:
                 headers={"X-Api-Key": "test_admin_key"},
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
 
 
 class TestOverviewEndpoint:
@@ -107,7 +107,7 @@ class TestOverviewEndpoint:
                 headers={"X-Api-Key": "test_admin_key"},
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
 
 
 class TestMemoriesEndpoint:
@@ -124,7 +124,7 @@ class TestMemoriesEndpoint:
                 headers={"X-Api-Key": "test_admin_key"},
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
 
 
 class TestAgentsEndpoint:
@@ -141,4 +141,4 @@ class TestAgentsEndpoint:
                 headers={"X-Api-Key": "test_admin_key"},
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200

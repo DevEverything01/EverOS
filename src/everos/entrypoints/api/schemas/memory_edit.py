@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .ids import AppScopeId, PathSafeId, ProjectScopeId
 
@@ -76,13 +76,24 @@ class ProfileEditResponse(BaseModel):
 
 
 class MemoryPatch(BaseModel):
-    """Fields to update on an episode."""
+    """Fields to update on an episode; at least one must be set.
+
+    An empty patch requests nothing and is refused (422), so that
+    ``unchanged=true`` in the response only ever means "the requested values
+    equal what is stored".
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     episode: str | None = Field(default=None, min_length=1, max_length=8000)
     summary: str | None = Field(default=None, min_length=1, max_length=1000)
     subject: str | None = Field(default=None, min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def _not_empty(self) -> MemoryPatch:
+        if self.episode is None and self.summary is None and self.subject is None:
+            raise ValueError("patch must set at least one of episode, summary, subject")
+        return self
 
 
 class MemoryUpdateReason(BaseModel):

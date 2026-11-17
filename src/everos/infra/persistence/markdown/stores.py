@@ -45,9 +45,11 @@ from everos.memory.models import (
 from everos.memory.ports import (
     MemoryRef,
     NoSourceCheck,
+    ReplaceOutcome,
     Scope,
     SourceCheck,
     Stored,
+    VersionedEpisode,
 )
 
 from ._base import Entry, EntryId, MarkdownReader
@@ -284,14 +286,49 @@ class MarkdownEpisodeStore(_DailyLogStore[Episode]):
             scope, entries=entries, replaced_by=replaced_by, only_if=only_if
         )
 
-    async def replace(self, scope: Scope, entry_id: str, episode: Episode) -> bool:
-        """Rewrite one episode in place, keeping its entry id and daily file."""
+    async def replace(
+        self,
+        scope: Scope,
+        entry_id: str,
+        episode: Episode,
+        *,
+        expected_version: str | None = None,
+    ) -> ReplaceOutcome:
+        """Rewrite one episode in place, keeping its entry id and daily file.
+
+        The version check and the write share one critical section (owner lock
+        + file lock); the read that produced ``expected_version`` does not, so
+        other writers are never blocked across the caller's awaits.
+        """
         path = self._path_of(scope, entry_id)
         if path is None:
-            return False
+            return ReplaceOutcome.MISSING
         inline, sections = self._to_entry(episode)
         async with LOCKS.hold("owner", owner_lock(scope)):
-            return await self._writer.replace_entry(path, entry_id, inline, sections)
+            return await self._writer.replace_entry(
+                path, entry_id, inline, sections, expected_version=expected_version
+            )
+
+    async def read_versioned(
+        self, scope: Scope, entry_id: str
+    ) -> VersionedEpisode | None:
+        """One episode plus its :attr:`Entry.version` (no lock)."""
+        found = await self._entries_with_paths(scope, [entry_id])
+        if not found:
+            return None
+        path, entry = found[0]
+        return VersionedEpisode(
+            stored=Stored(
+                ref=MemoryRef(
+                    id=f"{scope.owner_id}_{entry.id}",
+                    entry_id=entry.id,
+                    md_path=_relative(self._root, path),
+                ),
+                scope=scope,
+                item=_episode_from_entry(entry, owner_id=scope.owner_id),
+            ),
+            version=entry.version,
+        )
 
     async def exists(self, scope: Scope, entry_ids: Collection[str]) -> set[str]:
         return {entry.id for entry in await self._entries(scope, entry_ids)}

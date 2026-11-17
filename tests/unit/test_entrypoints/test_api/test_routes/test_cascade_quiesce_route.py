@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from everos.entrypoints.api.dependencies import require_admin
 from everos.entrypoints.api.routes.cascade import router as cascade_router
 from everos.infra.cascade import CascadeOrchestrator
 from tests.fakes import make_application
@@ -57,6 +58,9 @@ def _orch(*, before: int, after: int, drained: int) -> mock.MagicMock:
 def _client(orch: object | None) -> AsyncClient:
     app = FastAPI()
     app.include_router(cascade_router, prefix="/api/v1")
+    # No auth middleware here (scope checks fail closed without it); this
+    # suite pins quiesce behaviour, test_ops_route_scopes.py pins its scope.
+    app.dependency_overrides[require_admin] = lambda: None
     app.state.application = make_application(ops=make_ops(cascade=orch))
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
 

@@ -21,10 +21,12 @@ from .cors import DEFAULT_CORS_ALLOW_CREDENTIALS as DEFAULT_CORS_ALLOW_CREDENTIA
 from .cors import DEFAULT_CORS_ALLOW_HEADERS as DEFAULT_CORS_ALLOW_HEADERS
 from .cors import DEFAULT_CORS_ALLOW_METHODS as DEFAULT_CORS_ALLOW_METHODS
 from .cors import DEFAULT_CORS_ORIGINS as DEFAULT_CORS_ORIGINS
+from .cors import effective_allow_credentials as effective_allow_credentials
 from .profile import ProfileMiddleware as ProfileMiddleware
 from .prometheus import PrometheusMiddleware as PrometheusMiddleware
 from .request_id import RequestIdMiddleware as RequestIdMiddleware
 from .request_logging import RequestLoggingMiddleware as RequestLoggingMiddleware
+from .request_logging import RequestLogSink as RequestLogSink
 from .write_tracking import WriteTrackingMiddleware as WriteTrackingMiddleware
 
 __all__ = [
@@ -36,8 +38,10 @@ __all__ = [
     "ProfileMiddleware",
     "PrometheusMiddleware",
     "RequestIdMiddleware",
+    "RequestLogSink",
     "RequestLoggingMiddleware",
     "WriteTrackingMiddleware",
+    "effective_allow_credentials",
     "require_any_scope",
     "require_scope",
 ]

@@ -16,12 +16,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from everos.entrypoints.api.dependencies import (
     ApplicationDep,
     ControlStoreDep,
     RequestIdDep,
+    require_read,
+    require_write,
 )
 from everos.entrypoints.api.schemas import (
     ContextMemory,
@@ -46,7 +48,7 @@ from everos.entrypoints.api.schemas import (
 router = APIRouter(prefix="/memory", tags=["memory"])
 
 
-@router.post("/edit")
+@router.post("/edit", dependencies=[Depends(require_write)])
 async def edit_profile(
     req: ProfileEditRequest,
     app: ApplicationDep,
@@ -99,7 +101,7 @@ async def edit_profile(
     )
 
 
-@router.post("/update")
+@router.post("/update", dependencies=[Depends(require_write)])
 async def update_memory(
     req: MemoryUpdateRequest,
     app: ApplicationDep,
@@ -107,10 +109,14 @@ async def update_memory(
 ) -> SuccessEnvelope[MemoryUpdateResponse]:
     """Edit one episode's narrative, summary, or subject.
 
-    Rewrites one episode entry's summary/subject/content in its daily
-    ``episode-YYYY-MM-DD.md``, keeping the entry markers and front-matter
-    counters valid, then enqueues the index sync the same way appends do.
-    Re-sending content equal to what is stored returns unchanged=true.
+    Rewrites one episode entry's summary/subject/content in place in its
+    daily ``episode-YYYY-MM-DD.md``, keeping its id, entry markers and
+    front-matter. Nothing is enqueued: the markdown write is all this route
+    does, and the cascade's file watcher re-projects the changed file into
+    the index like any other markdown edit. A concurrent edit of the same
+    episode is detected and the patch re-applied, so neither is lost. At
+    least one patch field must be set (422 otherwise); unchanged=true means
+    the requested values already equal what is stored.
     """
     from everos.service.memory import EpisodePatch
 
@@ -139,7 +145,7 @@ async def update_memory(
     )
 
 
-@router.post("/feedback")
+@router.post("/feedback", dependencies=[Depends(require_write)])
 async def add_feedback(
     req: FeedbackRequest,
     store: ControlStoreDep,
@@ -162,7 +168,7 @@ async def add_feedback(
     )
 
 
-@router.get("/feedback")
+@router.get("/feedback", dependencies=[Depends(require_read)])
 async def get_feedback(
     store: ControlStoreDep,
     request_id: RequestIdDep,
@@ -191,7 +197,7 @@ async def get_feedback(
     )
 
 
-@router.post("/context")
+@router.post("/context", dependencies=[Depends(require_read)])
 async def get_context(
     req: ContextRequest,
     app: ApplicationDep,
@@ -257,7 +263,7 @@ async def get_context(
     )
 
 
-@router.post("/tags/add")
+@router.post("/tags/add", dependencies=[Depends(require_write)])
 async def add_tags(
     req: TagsAddRequest,
     store: ControlStoreDep,
@@ -278,7 +284,7 @@ async def add_tags(
     )
 
 
-@router.post("/tags/remove")
+@router.post("/tags/remove", dependencies=[Depends(require_write)])
 async def remove_tags(
     req: TagsRemoveRequest,
     store: ControlStoreDep,
@@ -298,7 +304,7 @@ async def remove_tags(
     )
 
 
-@router.get("/tags")
+@router.get("/tags", dependencies=[Depends(require_read)])
 async def list_tags(
     store: ControlStoreDep,
     request_id: RequestIdDep,

@@ -20,11 +20,16 @@ from __future__ import annotations
 import secrets
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Path, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, Path, Query, Response, UploadFile
 from fastapi.params import Form
 
 from everos.core.utils.datetime import get_utc_now, to_iso_format
-from everos.entrypoints.api.dependencies import ApplicationDep, RequestIdDep
+from everos.entrypoints.api.dependencies import (
+    ApplicationDep,
+    RequestIdDep,
+    require_read,
+    require_write,
+)
 from everos.entrypoints.api.schemas import (
     KBCategoryListResponse,
     KBDocumentDetail,
@@ -55,7 +60,7 @@ def _gen_kb_id() -> str:
     return f"kb_{secrets.token_hex(8)}"
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_write)])
 async def create_knowledge_base(
     req: KnowledgeBaseCreateRequest,
     app: ApplicationDep,
@@ -72,7 +77,7 @@ async def create_knowledge_base(
     )
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_read)])
 async def list_knowledge_bases(
     app: ApplicationDep,
     request_id: RequestIdDep,
@@ -94,7 +99,7 @@ async def list_knowledge_bases(
     )
 
 
-@router.delete("/{kb_id}")
+@router.delete("/{kb_id}", dependencies=[Depends(require_write)])
 async def delete_knowledge_base(
     kb_id: _PathKbId,
     app: ApplicationDep,
@@ -104,7 +109,9 @@ async def delete_knowledge_base(
     return Response(status_code=204)
 
 
-@router.post("/{kb_id}/documents", status_code=201)
+@router.post(
+    "/{kb_id}/documents", status_code=201, dependencies=[Depends(require_write)]
+)
 async def create_kb_document(
     kb_id: _PathKbId,
     app: ApplicationDep,
@@ -134,7 +141,7 @@ async def create_kb_document(
     )
 
 
-@router.get("/{kb_id}/documents")
+@router.get("/{kb_id}/documents", dependencies=[Depends(require_read)])
 async def list_kb_documents(
     kb_id: _PathKbId,
     app: ApplicationDep,
@@ -159,7 +166,7 @@ async def list_kb_documents(
     )
 
 
-@router.get("/{kb_id}/documents/{doc_id}")
+@router.get("/{kb_id}/documents/{doc_id}", dependencies=[Depends(require_read)])
 async def get_kb_document(
     kb_id: _PathKbId,
     doc_id: _PathDocId,
@@ -172,7 +179,7 @@ async def get_kb_document(
     raise NotFoundError(f"document {doc_id} not found in knowledge base {kb_id}")
 
 
-@router.get("/{kb_id}/categories")
+@router.get("/{kb_id}/categories", dependencies=[Depends(require_read)])
 async def list_kb_categories(
     kb_id: _PathKbId,
     app: ApplicationDep,
@@ -185,7 +192,7 @@ async def list_kb_categories(
     )
 
 
-@router.get("/{kb_id}/topics/{topic_id}")
+@router.get("/{kb_id}/topics/{topic_id}", dependencies=[Depends(require_read)])
 async def get_kb_topic(
     kb_id: _PathKbId,
     topic_id: _PathTopicId,
@@ -198,7 +205,7 @@ async def get_kb_topic(
     raise NotFoundError(f"topic {topic_id} not found in knowledge base {kb_id}")
 
 
-@router.post("/{kb_id}/search")
+@router.post("/{kb_id}/search", dependencies=[Depends(require_read)])
 async def search_kb(
     kb_id: _PathKbId,
     req: KBSearchRequest,

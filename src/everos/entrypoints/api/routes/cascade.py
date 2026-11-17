@@ -31,19 +31,24 @@ writes first and *becomes* read-only, which a setting read once at startup
 cannot express.
 
 Quiesce is deliberately one-way. Restart the process to get the projection back.
+Because it stops a subsystem for the life of the process, it needs ``admin``.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from everos.entrypoints.api.dependencies import ApplicationDep
+from everos.entrypoints.api.dependencies import ApplicationDep, require_admin
 from everos.entrypoints.api.schemas import QuiesceResponse
 
 router = APIRouter(prefix="/cascade", tags=["cascade"])
 
 
-@router.post("/quiesce", response_model=QuiesceResponse)
+@router.post(
+    "/quiesce",
+    response_model=QuiesceResponse,
+    dependencies=[Depends(require_admin)],
+)
 async def quiesce(app: ApplicationDep) -> QuiesceResponse:
     """Drain the projection queue, then stop watcher + scanner + worker.
 

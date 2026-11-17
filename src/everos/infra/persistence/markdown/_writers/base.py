@@ -47,6 +47,7 @@ from everos.infra.persistence.markdown._base.frontmatter import (
 from everos.infra.persistence.markdown._base.reader import MarkdownReader
 from everos.infra.persistence.markdown._base.writer import MarkdownWriter
 from everos.infra.persistence.memory_root import MemoryRoot
+from everos.memory.ports import ReplaceOutcome
 
 logger = get_logger(__name__)
 
@@ -281,33 +282,42 @@ class BaseDailyWriter:
         entry_id: str,
         inline: Mapping[str, object],
         sections: Mapping[str, str],
-    ) -> bool:
+        *,
+        expected_version: str | None = None,
+    ) -> ReplaceOutcome:
         """Rewrite one entry in place, keeping its id, header and file.
 
         Used by the console's "edit this memory" action: unlike remove+append,
         the entry stays in its original daily file with its original id, so a
         later cascade sees an update rather than a delete plus a new episode.
+
+        With ``expected_version`` (an :attr:`Entry.version` read earlier), the
+        entry is compared under the file lock and left untouched when it has
+        changed since: ``CONFLICT`` tells the caller to re-read and re-apply.
         """
         async with self._writer.locked(path):
             try:
                 raw = await MarkdownReader.read_text(path)
             except FileNotFoundError:
-                return False
+                return ReplaceOutcome.MISSING
             meta, body = parse_frontmatter(raw)
             entry = find_entry(body, entry_id)
             if entry is None:
-                return False
-            header = next(
-                (line for line in entry.body.splitlines() if line.strip()),
-                f"## {entry_id}",
-            )
+                return ReplaceOutcome.MISSING
+            if expected_version is not None and entry.version != expected_version:
+                return ReplaceOutcome.CONFLICT
             rendered = render_structured_entry(
-                header=header, inline=inline, sections=sections
+                header=entry_id, inline=inline, sections=sections
+            )
+            # Same marker framing as ``MarkdownWriter.append_entries``: the
+            # span ``[start, end)`` covers the markers, so they are rewritten.
+            block = (
+                f"<!-- entry:{entry_id} -->\n{rendered}\n<!-- /entry:{entry_id} -->\n"
             )
             end = entry.end + (body[entry.end : entry.end + 1] == "\n")
-            body = body[: entry.start] + rendered + body[end:]
+            body = body[: entry.start] + block + body[end:]
             await self._writer.write_markdown(path, frontmatter=meta, body=body)
-            return True
+            return ReplaceOutcome.REPLACED
 
     async def drop_deprecations(self, path: Path, keys: Collection[str]) -> bool:
         """Remove ``keys`` from the file's ``deprecated_entries``; whether any was."""

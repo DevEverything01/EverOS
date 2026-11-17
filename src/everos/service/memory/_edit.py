@@ -2,8 +2,9 @@
 
 This module implements the ``/memory/edit`` and ``/memory/update`` use cases,
 providing real persistence to markdown files through the existing stores.
-Profile edits modify ``user.md``; episode updates modify daily episode files.
-Both trigger the cascade's index sync the same way extraction-time writes do.
+Profile edits modify ``user.md``; episode updates rewrite one entry in place
+in its daily episode file. Neither enqueues anything: the cascade's watcher
+picks up the changed markdown and re-projects it into the index.
 """
 
 from __future__ import annotations
@@ -12,15 +13,31 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
+from everos.core.errors import (
+    MemoryOwnerMismatchError,
+    MemoryUpdateFailedError,
+    NotFoundError,
+)
 from everos.core.observability.logging import get_logger
 from everos.core.utils.datetime import get_utc_now, to_timestamp_ms
-from everos.memory.models import ExplicitInfoItem, ImplicitTraitItem, Profile
-from everos.memory.ports import Scope
+from everos.memory.models import (
+    Episode,
+    ExplicitInfoItem,
+    ImplicitTraitItem,
+    Profile,
+)
+from everos.memory.ports import ReplaceOutcome, Scope
+
+from ._ids import split_episode_memory_id
 
 if TYPE_CHECKING:
     from everos.memory.deps import Stores
 
 logger = get_logger(__name__)
+
+# Optimistic-concurrency rounds for one episode update: read + version,
+# patch, compare-and-write; a lost race re-reads and re-applies the patch.
+_UPDATE_ATTEMPTS = 3
 
 
 @dataclass
@@ -73,6 +90,17 @@ class EpisodeUpdateResult:
     memory_type: str = "episode"
     unchanged: bool = False
     edited_at: str | None = None
+
+
+def _apply_patch(episode: Episode, patch: EpisodePatch) -> bool:
+    """Apply ``patch`` to ``episode`` in place; whether anything changed."""
+    changed = False
+    for field in ("episode", "summary", "subject"):
+        value = getattr(patch, field)
+        if value is not None and value != getattr(episode, field):
+            setattr(episode, field, value)
+            changed = True
+    return changed
 
 
 def _mint_item_id(item_type: str) -> str:
@@ -250,6 +278,10 @@ async def update_episode(
 
     Locates the episode by its memory_id (which encodes owner_id and entry_id),
     applies the patch, and writes the modified entry back to its daily file.
+    The read is versioned and the write compares that version under the
+    file lock; when another writer got in between, the episode is re-read
+    and the patch re-applied (up to ``_UPDATE_ATTEMPTS`` rounds), so two
+    concurrent patches of different fields both land.
 
     Args:
         stores: Write-side stores.
@@ -260,15 +292,22 @@ async def update_episode(
         user_id: Optional owner guard - reject if episode belongs to another.
 
     Returns:
-        Result with the edited episode id and timestamp.
-    """
-    if "_" not in memory_id:
-        return EpisodeUpdateResult(id=memory_id, unchanged=True)
+        Result with the edited episode id and timestamp; ``unchanged=True``
+        only when the patch equals what is stored.
 
-    owner_id, entry_id = memory_id.split("_", 1)
+    Raises:
+        InvalidMemoryIdError: ``memory_id`` is not an episode id (400).
+        MemoryOwnerMismatchError: ``user_id`` is set and is not the owner (403).
+        NotFoundError: no such episode (404).
+        MemoryUpdateFailedError: the episode vanished while rewriting, or
+            kept changing concurrently through every attempt (500).
+    """
+    owner_id, entry_id = split_episode_memory_id(memory_id)
 
     if user_id is not None and owner_id != user_id:
-        return EpisodeUpdateResult(id=memory_id, unchanged=True)
+        raise MemoryOwnerMismatchError(
+            f"memory {memory_id!r} does not belong to user {user_id!r}"
+        )
 
     scope = Scope(
         app_id=app_id,
@@ -277,32 +316,29 @@ async def update_episode(
         owner_id=owner_id,
     )
 
-    stored_list = await stores.episode.read_many(scope, [entry_id])
-    if not stored_list:
-        return EpisodeUpdateResult(id=memory_id, unchanged=True)
-
-    stored = stored_list[0]
-    episode = stored.item
-
-    changed = False
-    if patch.episode is not None and patch.episode != episode.episode:
-        episode.episode = patch.episode
-        changed = True
-    if patch.summary is not None and patch.summary != episode.summary:
-        episode.summary = patch.summary
-        changed = True
-    if patch.subject is not None and patch.subject != episode.subject:
-        episode.subject = patch.subject
-        changed = True
-
-    if not changed:
-        return EpisodeUpdateResult(id=memory_id, unchanged=True)
-
-    replaced = await stores.episode.replace(scope, entry_id, episode)
+    for _attempt in range(_UPDATE_ATTEMPTS):
+        versioned = await stores.episode.read_versioned(scope, entry_id)
+        if versioned is None:
+            raise NotFoundError(f"episode {memory_id!r} not found")
+        episode = versioned.stored.item
+        if not _apply_patch(episode, patch):
+            return EpisodeUpdateResult(id=memory_id, unchanged=True)
+        outcome = await stores.episode.replace(
+            scope, entry_id, episode, expected_version=versioned.version
+        )
+        if outcome is ReplaceOutcome.REPLACED:
+            break
+        if outcome is ReplaceOutcome.MISSING:
+            raise MemoryUpdateFailedError(
+                f"episode {memory_id!r} could not be rewritten"
+            )
+        logger.info("episode_update_conflict", memory_id=memory_id, attempt=_attempt)
+    else:
+        raise MemoryUpdateFailedError(
+            f"episode {memory_id!r} kept changing concurrently; "
+            f"gave up after {_UPDATE_ATTEMPTS} attempts"
+        )
     edited_at = get_utc_now().isoformat()
-
-    if not replaced:
-        return EpisodeUpdateResult(id=memory_id, unchanged=True)
 
     logger.info("episode_updated", memory_id=memory_id, entry_id=entry_id)
 

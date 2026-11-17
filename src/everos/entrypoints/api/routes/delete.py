@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from everos.entrypoints.api.dependencies import ApplicationDep, RequestIdDep
+from everos.entrypoints.api.dependencies import (
+    ApplicationDep,
+    RequestIdDep,
+    require_write,
+)
 from everos.entrypoints.api.schemas import (
     DeleteByIdsRequest,
     DeleteByIdsResponseData,
@@ -30,7 +34,7 @@ _RESPONSES: dict[int | str, dict[str, object]] = {
 }
 
 
-@router.post("/delete", responses=_RESPONSES)
+@router.post("/delete", responses=_RESPONSES, dependencies=[Depends(require_write)])
 async def delete_memory(
     req: DeleteRequest, app: ApplicationDep, request_id: RequestIdDep
 ) -> SuccessEnvelope[DeleteResponseData]:
@@ -48,7 +52,11 @@ async def delete_memory(
     )
 
 
-@router.post("/delete_by_ids", responses={500: _RESPONSES[500]})
+@router.post(
+    "/delete_by_ids",
+    responses={500: _RESPONSES[500]},
+    dependencies=[Depends(require_write)],
+)
 async def delete_memories_by_ids(
     req: DeleteByIdsRequest, app: ApplicationDep, request_id: RequestIdDep
 ) -> SuccessEnvelope[DeleteByIdsResponseData]:

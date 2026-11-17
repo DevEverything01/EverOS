@@ -8,6 +8,8 @@ Tables for the control plane living in ``control.db``:
 - ``feedback``: user feedback on memories
 - ``tags``: user-assigned tags on memories
 - ``schema_version``: migration version tracking (one row)
+- ``control_settings``: persisted control-plane values (session signing
+  secret, bootstrap claim marker), one row per key
 
 All timestamps are UTC. The ``api_keys`` table stores a sha256 hex hash of the
 full secret; only the 8-character prefix is retrievable for display.
@@ -112,6 +114,23 @@ class Tag(SQLModel, table=True):
     memory_id: str = Field(primary_key=True)
     tag: str = Field(primary_key=True)
     user_id: str | None = Field(default=None)
+    created_at: UtcDatetime = Field(
+        default_factory=get_utc_now, sa_type=UtcDateTimeColumn
+    )
+
+
+class ControlSetting(SQLModel, table=True):
+    """A persisted control-plane value, keyed by name.
+
+    Rows are written with ``INSERT OR IGNORE`` so the first writer wins
+    across concurrent requests and processes (see
+    :meth:`ControlStore.get_or_create_setting`).
+    """
+
+    __tablename__ = "control_settings"
+
+    key: str = Field(primary_key=True)
+    value: str
     created_at: UtcDatetime = Field(
         default_factory=get_utc_now, sa_type=UtcDateTimeColumn
     )

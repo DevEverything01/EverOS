@@ -5,6 +5,9 @@ async operations for API keys, request logs, usage metrics, feedback and tags.
 It owns its own SQLAlchemy engine and session factory, independent from the
 memory-domain ``system.db``.
 
+``control.db`` holds the console session signing secret and API key hashes,
+so it and its WAL / shared-memory files are kept owner-only (0600).
+
 Schema creation is idempotent: calling :meth:`create_schema` multiple times
 creates missing tables and columns without losing data. A ``schema_version``
 row tracks the current version for forward-only migrations.
@@ -15,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import os
 import secrets
 from base64 import urlsafe_b64encode
 from collections.abc import Sequence
@@ -22,7 +26,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Connection, func, select, text, update
+import anyio
+from sqlalchemy import Connection, delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlmodel import SQLModel
 
@@ -32,7 +37,14 @@ from everos.core.utils.datetime import get_utc_now
 
 from ._base.engine import create_system_engine
 from ._base.session import create_session_factory
-from ._tables.control import ApiKey, Feedback, RequestLog, Tag, UsageDaily
+from ._tables.control import (
+    ApiKey,
+    ControlSetting,
+    Feedback,
+    RequestLog,
+    Tag,
+    UsageDaily,
+)
 
 if TYPE_CHECKING:
     pass
@@ -83,6 +95,26 @@ def _generate_key() -> tuple[str, str, str]:
     return prefix, secret, key_hash
 
 
+_SQLITE_SIDECARS = ("", "-wal", "-shm", "-journal")
+
+
+def _restrict_to_owner(db_path: Path) -> None:
+    """Create ``db_path`` 0600 if missing; chmod it and its sidecars to 0600.
+
+    SQLite creates ``-wal`` / ``-shm`` with the database file's mode, so a
+    database that is 0600 before the first connection keeps every sidecar
+    owner-only; the chmod after the connection covers pre-existing files.
+    """
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    os.close(os.open(db_path, os.O_RDWR | os.O_CREAT, 0o600))
+    for suffix in _SQLITE_SIDECARS:
+        path = db_path.with_name(db_path.name + suffix)
+        try:
+            os.chmod(path, 0o600)
+        except FileNotFoundError:
+            continue
+
+
 def _hash_key(secret: str) -> str:
     """Hash an API key secret with sha256."""
     return hashlib.sha256(secret.encode()).hexdigest()
@@ -114,12 +146,18 @@ class ControlStore:
     async def create_schema(self) -> int:
         """Create tables and run migrations idempotently.
 
+        Also restricts ``control.db`` and its ``-wal`` / ``-shm`` siblings to
+        the owner (0600) on every open, which fixes databases created by an
+        earlier version under a permissive umask.
+
         Returns:
             The number of tables created or verified.
         """
+        await anyio.to_thread.run_sync(_restrict_to_owner, self._db_path)
         async with self._engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
             await conn.run_sync(self._ensure_schema_version)
+        await anyio.to_thread.run_sync(_restrict_to_owner, self._db_path)
         logger.info("control_schema_ready", version=CURRENT_SCHEMA_VERSION)
         return len(SQLModel.metadata.tables)
 
@@ -152,6 +190,38 @@ class ControlStore:
 
     # ── API Keys ────────────────────────────────────────────────────────────
 
+    # ── Control settings ────────────────────────────────────────────────────
+
+    async def get_setting(self, key: str) -> str | None:
+        """Return the persisted value for ``key``, or None."""
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(ControlSetting.value).where(ControlSetting.key == key)
+            )
+            return result.scalar_one_or_none()
+
+    async def get_or_create_setting(self, key: str, value: str) -> str:
+        """Return the persisted value for ``key``, storing ``value`` if absent.
+
+        ``INSERT OR IGNORE`` then ``SELECT``: whichever writer commits first
+        wins, and every caller (any process) reads that same value back.
+        """
+        async with self._session_factory() as session:
+            await session.execute(
+                text(
+                    "INSERT OR IGNORE INTO control_settings (key, value, created_at) "
+                    "VALUES (:key, :value, :created_at)"
+                ),
+                {"key": key, "value": value, "created_at": get_utc_now()},
+            )
+            await session.commit()
+            result = await session.execute(
+                select(ControlSetting.value).where(ControlSetting.key == key)
+            )
+            return result.scalar_one()
+
+    # ── API Keys ────────────────────────────────────────────────────────────
+
     async def create_key(
         self,
         name: str,
@@ -166,13 +236,77 @@ class ControlStore:
         Returns:
             The created key including the secret (only returned once).
         """
+        row, created = self._new_key_row(name, scopes)
+        async with self._session_factory() as session:
+            session.add(row)
+            await session.commit()
+
+        logger.info("api_key_created", key_id=created.key_id, name=name)
+        return created
+
+    async def create_key_once(
+        self,
+        claim: str,
+        name: str,
+        scopes: list[str] | None = None,
+    ) -> CreatedKey | None:
+        """Create a key only if ``claim`` was never taken; else return None.
+
+        The claim row (in ``control_settings``) and the key are written in one
+        transaction, so of any number of concurrent callers -- in this process
+        or another -- exactly one creates the key.
+        """
+        row, created = self._new_key_row(name, scopes)
+        async with self._session_factory() as session:
+            result = await session.execute(
+                text(
+                    "INSERT OR IGNORE INTO control_settings (key, value, created_at) "
+                    "VALUES (:key, :value, :created_at)"
+                ),
+                {
+                    "key": claim,
+                    "value": created.key_id,
+                    "created_at": get_utc_now(),
+                },
+            )
+            if result.rowcount != 1:
+                await session.rollback()
+                return None
+            session.add(row)
+            await session.commit()
+
+        logger.info("api_key_created", key_id=created.key_id, name=name, claim=claim)
+        return created
+
+    async def abandon_key_once(self, claim: str, key_id: str) -> None:
+        """Undo :meth:`create_key_once`: revoke ``key_id`` and release ``claim``.
+
+        One transaction; the claim row is only deleted while it still names
+        ``key_id``, so a later winner's claim is never released by mistake.
+        """
+        now = get_utc_now()
+        async with self._session_factory() as session:
+            await session.execute(
+                update(ApiKey)
+                .where(ApiKey.key_id == key_id, ApiKey.revoked_at.is_(None))
+                .values(revoked_at=now, updated_at=now)
+            )
+            await session.execute(
+                delete(ControlSetting).where(
+                    ControlSetting.key == claim, ControlSetting.value == key_id
+                )
+            )
+            await session.commit()
+        logger.warning("api_key_abandoned", key_id=key_id, claim=claim)
+
+    @staticmethod
+    def _new_key_row(name: str, scopes: list[str] | None) -> tuple[ApiKey, CreatedKey]:
+        """Build an unsaved key row and the matching one-time result."""
         if scopes is None:
             scopes = ["memory:read", "memory:write", "admin"]
-
         prefix, secret, key_hash = _generate_key()
         key_id = f"key_{secrets.token_hex(8)}"
         now = get_utc_now()
-
         row = ApiKey(
             key_id=key_id,
             name=name,
@@ -182,13 +316,7 @@ class ControlStore:
             created_at=now,
             updated_at=now,
         )
-
-        async with self._session_factory() as session:
-            session.add(row)
-            await session.commit()
-
-        logger.info("api_key_created", key_id=key_id, name=name)
-        return CreatedKey(
+        created = CreatedKey(
             key_id=key_id,
             name=name,
             prefix=prefix,
@@ -196,6 +324,7 @@ class ControlStore:
             scopes=scopes,
             created_at=now,
         )
+        return row, created
 
     async def lookup_key(self, secret: str) -> ApiKey | None:
         """Look up a key by its secret (hashed for comparison).
@@ -427,6 +556,24 @@ class ControlStore:
                 stmt = stmt.where(RequestLog.path.like(f"%{path_suffix}"))
             result = await session.execute(stmt)
             return result.scalar() or 0
+
+    async def request_counts_by_hour(
+        self, from_ts: dt.datetime, to_ts: dt.datetime
+    ) -> Sequence[tuple[str, str, bool, int]]:
+        """Count requests in ``[from_ts, to_ts)`` by UTC hour, path and 5xx.
+
+        Returns ``(hour, path, is_5xx, count)`` rows; ``hour`` is
+        ``YYYY-MM-DDTHH`` (UTC).
+        """
+        hour = func.strftime("%Y-%m-%dT%H", RequestLog.ts)
+        is_error = RequestLog.status >= 500
+        async with self._session_factory() as session:
+            result = await session.execute(
+                select(hour, RequestLog.path, is_error, func.count())
+                .where(RequestLog.ts >= from_ts, RequestLog.ts < to_ts)
+                .group_by(hour, RequestLog.path, is_error)
+            )
+            return [(h, p, bool(e), int(n)) for h, p, e, n in result.all()]
 
     async def prune_request_logs(self, retain_days: int) -> int:
         """Delete request logs older than retain_days. Returns count deleted."""

@@ -1162,7 +1162,12 @@ class AuthSettings(BaseModel):
     request and creates the initial admin key. Also read from
     ``EVEROS_BOOTSTRAP_TOKEN`` env var."""
     session_secret: SecretStr | None = None
-    """Secret for signing session cookies. Auto-generated if not set."""
+    """Secret for signing session cookies. When unset, a random secret is
+    generated once and persisted in ``control.db`` (``control_settings``
+    row ``auth.session_secret``), so sessions survive restarts."""
+    trust_forwarded_proto: bool = False
+    """Honour ``X-Forwarded-Proto: https`` when deciding the session cookie's
+    ``Secure`` flag. Enable only behind a TLS-terminating reverse proxy."""
     exempt_paths: list[str] = Field(
         default_factory=lambda: [
             "/health",
@@ -1201,11 +1206,25 @@ class RequestLogsSettings(BaseModel):
 
     Env binding:
         EVEROS_REQUEST_LOGS__RETAIN_DAYS
+        EVEROS_REQUEST_LOGS__TRUST_FORWARDED_FOR
+        EVEROS_REQUEST_LOGS__QUEUE_SIZE
     """
 
     retain_days: int = Field(default=14, ge=1)
     """Days to retain request logs; older entries are pruned on startup and
     hourly thereafter."""
+    trust_forwarded_for: bool = False
+    """Record the client from ``X-Forwarded-For`` (left-most hop, validated as
+    an IP address). Enable only behind a reverse proxy that sets the header;
+    by default the socket peer address is recorded and the header ignored."""
+    queue_size: int = Field(default=1000, ge=1)
+    """Bound of the in-memory queue feeding the request-log writer. When full,
+    new records are dropped and counted (``request_log_dropped``)."""
+
+
+def _dev_mode() -> bool:
+    """True when the process runs with ``ENV=DEV`` (case-insensitive)."""
+    return os.environ.get("ENV", "prod").upper() == "DEV"
 
 
 class ServerSettings(BaseModel):
@@ -1216,9 +1235,10 @@ class ServerSettings(BaseModel):
         EVEROS_SERVER__CONSOLE_ENABLED
     """
 
-    docs_enabled: bool = True
+    docs_enabled: bool = Field(default_factory=lambda: _dev_mode())
     """Enable OpenAPI docs endpoints (/docs, /redoc, /openapi.json).
-    Default true; set false in production to hide API docs."""
+    Default: on only when ``ENV=DEV``; production does not expose the API
+    schema unless ``[server] docs_enabled = true`` is set explicitly."""
 
     console_enabled: bool = True
     """Enable the bundled web console at /console.
@@ -1273,7 +1293,7 @@ class Settings(BaseSettings):
     purge: PurgeSettings = PurgeSettings()
     auth: AuthSettings = AuthSettings()
     request_logs: RequestLogsSettings = RequestLogsSettings()
-    server: ServerSettings = ServerSettings()
+    server: ServerSettings = Field(default_factory=ServerSettings)
 
     model_config = SettingsConfigDict(
         env_prefix="EVEROS_",

@@ -58,7 +58,7 @@ class TestKnowledgeBaseCRUD:
         ) as client:
             response = await client.get("/api/v2/knowledge_bases")
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert "items" in data
@@ -106,7 +106,7 @@ class TestKnowledgeBaseDocuments:
         ) as client:
             response = await client.get("/api/v2/knowledge_bases/kb_12345678/documents")
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert "items" in data
@@ -140,7 +140,7 @@ class TestKnowledgeBaseCategories:
                 "/api/v2/knowledge_bases/kb_12345678/categories"
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert "categories" in data
@@ -180,7 +180,7 @@ class TestKnowledgeBaseSearch:
                 },
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert "topics" in data

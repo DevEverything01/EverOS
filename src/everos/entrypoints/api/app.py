@@ -30,7 +30,9 @@ from everos.entrypoints.api.middleware import (
     PrometheusMiddleware,
     RequestIdMiddleware,
     RequestLoggingMiddleware,
+    RequestLogSink,
     WriteTrackingMiddleware,
+    effective_allow_credentials,
 )
 from everos.service import Application, build_application
 
@@ -75,7 +77,9 @@ def create_app(
             over fakes). It is reachable by routes at once, and the lifespan
             starts and closes it like one it built itself.
         cors_origins: Allowed CORS origins (default: ``["*"]``).
-        cors_allow_credentials: Whether to allow credentials (default: True).
+        cors_allow_credentials: Whether to allow credentials (default: False).
+            Ignored -- forced off, with a warning -- when the origins include
+            ``"*"``.
         cors_allow_methods: Allowed CORS methods (default: ``["*"]``).
         cors_allow_headers: Allowed CORS headers (default: ``["*"]``).
 
@@ -95,6 +99,7 @@ def create_app(
             await built.start()
             yield
         finally:
+            await request_logging.drain()
             await built.aclose()
 
     from everos import __version__
@@ -109,6 +114,8 @@ def create_app(
         openapi_url="/openapi.json" if enable_docs else None,
     )
 
+    # Routes and the auth middleware read the same [auth] settings.
+    app.state.auth_settings = effective_settings.auth
     if application is not None:
         app.state.application = application
         app.state.control_store = application.control
@@ -120,16 +127,28 @@ def create_app(
     # Write tracking innermost: it stamps the request the handler runs in.
     app.add_middleware(WriteTrackingMiddleware)
     # Request logging: records each /api/ request to the control-plane audit log.
+    request_logging = RequestLogSink(effective_settings.request_logs)
+    app.state.request_log_sink = request_logging
     app.add_middleware(
-        RequestLoggingMiddleware, settings=effective_settings.request_logs
+        RequestLoggingMiddleware,
+        settings=effective_settings.request_logs,
+        sink=request_logging,
     )
     # Auth middleware: validates API keys and sets request.state.api_key_id/scopes.
     app.add_middleware(AuthMiddleware, settings=effective_settings.auth)
     # CORS next (matches base_app.py legacy pattern).
+    origins = cors_origins or DEFAULT_CORS_ORIGINS
+    allow_credentials = effective_allow_credentials(origins, cors_allow_credentials)
+    if cors_allow_credentials and not allow_credentials:
+        logger.warning(
+            "cors_credentials_disabled",
+            reason="allow_credentials is incompatible with the '*' origin; "
+            "list explicit origins to allow credentials",
+        )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=cors_origins or DEFAULT_CORS_ORIGINS,
-        allow_credentials=cors_allow_credentials,
+        allow_origins=origins,
+        allow_credentials=allow_credentials,
         allow_methods=cors_allow_methods or DEFAULT_CORS_ALLOW_METHODS,
         allow_headers=cors_allow_headers or DEFAULT_CORS_ALLOW_HEADERS,
     )

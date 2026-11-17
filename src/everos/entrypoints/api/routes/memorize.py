@@ -11,10 +11,14 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Depends, Response
 from starlette.status import HTTP_202_ACCEPTED
 
-from everos.entrypoints.api.dependencies import ApplicationDep, RequestIdDep
+from everos.entrypoints.api.dependencies import (
+    ApplicationDep,
+    RequestIdDep,
+    require_write,
+)
 from everos.entrypoints.api.routes.purge import REFUSED_DURING_PURGE
 from everos.entrypoints.api.schemas import (
     AcceptedResponseData,
@@ -60,7 +64,7 @@ _FLUSH_RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 
 
-@router.post("/add", responses=_ADD_RESPONSES)
+@router.post("/add", responses=_ADD_RESPONSES, dependencies=[Depends(require_write)])
 async def add_memory(
     req: Annotated[MemorizeAddRequest, ...],
     response: Response,
@@ -86,7 +90,9 @@ async def add_memory(
     )
 
 
-@router.post("/flush", responses=_FLUSH_RESPONSES)
+@router.post(
+    "/flush", responses=_FLUSH_RESPONSES, dependencies=[Depends(require_write)]
+)
 async def flush_memory(
     req: Annotated[MemorizeFlushRequest, ...],
     response: Response,

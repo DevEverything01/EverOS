@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from starlette.responses import Response
 
 from everos.config import AuthSettings
@@ -235,8 +237,50 @@ class TestAuthMiddleware:
         call_next.assert_called_once()
         store.touch_key.assert_called_once_with("key_123")
 
-    async def test_bootstrap_token_creates_key_on_first_use(self) -> None:
-        """Bootstrap token creates admin key on first use when no keys exist."""
+    async def test_failed_touch_is_retried_on_next_request(self) -> None:
+        """A failed ``last_used_at`` write does not arm the throttle."""
+        middleware = self._make_middleware()
+        api_key = MagicMock()
+        api_key.key_id = "key_123"
+        api_key.scopes = '["memory:read"]'
+        store = AsyncMock()
+        store.lookup_key.return_value = api_key
+        store.touch_key.side_effect = [RuntimeError("locked"), None, None]
+
+        async def one_request() -> None:
+            request = MagicMock()
+            request.url.path = "/api/v2/memory/get"
+            request.headers = {"Authorization": "Bearer valid_token"}
+            request.app.state.control_store = store
+            request.state = MagicMock()
+            await middleware.dispatch(request, AsyncMock(return_value=Response()))
+
+        await one_request()  # write fails
+        await one_request()  # retried, succeeds
+        await one_request()  # throttled
+
+        assert store.touch_key.await_count == 2
+
+    async def test_touch_throttle_uses_monotonic_clock(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The throttle measures elapsed time on the monotonic clock only."""
+        from everos.entrypoints.api.middleware import auth as auth_module
+
+        ticks = iter([1000.0, 1000.0 + auth_module.TOUCH_INTERVAL_S + 1])
+        monkeypatch.setattr(
+            auth_module, "time", SimpleNamespace(monotonic=lambda: next(ticks))
+        )
+        middleware = self._make_middleware()
+        store = AsyncMock()
+
+        await middleware._touch(store, "key_1")
+        await middleware._touch(store, "key_1")
+
+        assert store.touch_key.await_count == 2
+
+    async def test_bootstrap_token_creates_key_on_first_use(self, tmp_path) -> None:
+        """Bootstrap token claims-and-creates the admin key, saving its secret."""
         from pydantic import SecretStr
 
         settings = AuthSettings(
@@ -250,25 +294,30 @@ class TestAuthMiddleware:
         created_key = MagicMock()
         created_key.key_id = "key_bootstrap"
         created_key.prefix = "abcd1234"
+        created_key.secret = "eos_abcd1234_secret"
 
         store = AsyncMock()
         store.key_count.return_value = 0
-        store.create_key.return_value = created_key
+        store.create_key_once.return_value = created_key
         store.lookup_key.return_value = None
 
         request = MagicMock()
         request.url.path = "/api/v2/memory/add"
         request.headers = {"Authorization": "Bearer test-bootstrap-token"}
         request.app.state.control_store = store
+        request.app.state.application._root.root = tmp_path
         request.state = MagicMock()
         call_next = AsyncMock(return_value=Response())
 
         await middleware.dispatch(request, call_next)
 
-        store.create_key.assert_called_once_with(
+        store.create_key_once.assert_awaited_once_with(
+            "auth.bootstrap_admin_key_id",
             "bootstrap-admin",
             scopes=["memory:read", "memory:write", "admin"],
         )
+        store.create_key.assert_not_called()
+        assert (tmp_path / "bootstrap-admin.key").read_text() == "eos_abcd1234_secret\n"
         assert request.state.api_key_id == "bootstrap"
         assert request.state.scopes == ["memory:read", "memory:write", "admin"]
         call_next.assert_called_once()

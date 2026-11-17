@@ -8,15 +8,17 @@ on the way out.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from everos.entrypoints.api.dependencies import ApplicationDep
+from everos.entrypoints.api.dependencies import ApplicationDep, require_read
 from everos.service import SearchRequest, SearchResponse
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
 
-@router.post("/search", response_model=SearchResponse)
+@router.post(
+    "/search", response_model=SearchResponse, dependencies=[Depends(require_read)]
+)
 async def post_search(req: SearchRequest, app: ApplicationDep) -> SearchResponse:
     """Hybrid retrieval across the configured memory backends."""
     return await app.memory.search(req)

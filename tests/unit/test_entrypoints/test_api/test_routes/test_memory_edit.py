@@ -68,7 +68,7 @@ class TestProfileEdit:
                 },
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert data["user_id"] == "user_001"
@@ -97,7 +97,7 @@ class TestMemoryUpdate:
                 },
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert data["id"] == "user_001_ep_20261116_001"
@@ -124,7 +124,7 @@ class TestFeedback:
                 },
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert "id" in data
@@ -149,7 +149,7 @@ class TestFeedback:
                 },
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
 
 
 class TestContext:
@@ -170,7 +170,7 @@ class TestContext:
                 },
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert "context" in data
@@ -197,7 +197,7 @@ class TestTags:
                 },
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert data["memory_id"] == "user_001_ep_20261116_001"
@@ -224,7 +224,7 @@ class TestTags:
                 },
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
 
     async def test_list_tags_by_memory_id(
         self, app_with_control, control_store: ControlStore
@@ -244,7 +244,7 @@ class TestTags:
                 params={"memory_id": "user_001_ep_20261116_001"},
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert "tags" in data
@@ -267,7 +267,7 @@ class TestTags:
                 params={"tag": "important"},
             )
 
-        assert response.status_code in (200, 401, 403)
+        assert response.status_code == 200
         if response.status_code == 200:
             data = response.json()["data"]
             assert "memory_ids" in data

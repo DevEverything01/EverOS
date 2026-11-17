@@ -47,14 +47,49 @@ def scopes(request: Request) -> list[str]:
     return getattr(request.state, "scopes", [])
 
 
+def _forbidden(message: str) -> HTTPException:
+    return HTTPException(status_code=403, detail=message)
+
+
+def _auth_open(request: Request) -> bool:
+    """True when the auth middleware marked this request as unauthenticated-open.
+
+    Only :class:`AuthMiddleware` sets the flag, and only when
+    ``[auth]`` is not enforced (``enabled=false`` or ``legacy_open=true``).
+    Anything else -- including a request that never passed the middleware --
+    is checked against the key's scopes (fail closed).
+    """
+    return getattr(request.state, "auth_open", False) is True
+
+
 def require_admin(request: Request) -> None:
-    """Dependency that requires admin scope."""
-    user_scopes = scopes(request)
-    if "admin" not in user_scopes:
-        raise HTTPException(
-            status_code=403,
-            detail={"error": {"code": "forbidden", "message": "Admin scope required"}},
-        )
+    """Dependency that requires the ``admin`` scope."""
+    if _auth_open(request):
+        return
+    if "admin" not in scopes(request):
+        raise _forbidden("Admin scope required")
+
+
+def require_read(request: Request) -> None:
+    """Dependency that requires ``memory:read`` (``admin`` implies it).
+
+    ``memory:write`` does not: a write-only key (an ingestion pipeline) must
+    not be able to read back every user's memory.
+    """
+    if _auth_open(request):
+        return
+    granted = scopes(request)
+    if "memory:read" not in granted and "admin" not in granted:
+        raise _forbidden("memory:read scope required")
+
+
+def require_write(request: Request) -> None:
+    """Dependency that requires ``memory:write`` (``admin`` implies it)."""
+    if _auth_open(request):
+        return
+    granted = scopes(request)
+    if "memory:write" not in granted and "admin" not in granted:
+        raise _forbidden("memory:write scope required")
 
 
 ApplicationDep = Annotated[Application, Depends(application)]
@@ -74,3 +109,9 @@ ScopesDep = Annotated[list[str], Depends(scopes)]
 
 RequireAdminDep = Annotated[None, Depends(require_admin)]
 """Dependency that ensures admin scope."""
+
+RequireReadDep = Annotated[None, Depends(require_read)]
+"""Dependency that ensures ``memory:read`` scope."""
+
+RequireWriteDep = Annotated[None, Depends(require_write)]
+"""Dependency that ensures ``memory:write`` scope."""

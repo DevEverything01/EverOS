@@ -436,7 +436,7 @@
           "memory"
         ],
         "summary": "Update Memory",
-        "description": "Edit one episode's narrative, summary, or subject.\n\nRewrites one episode entry's summary/subject/content in its daily\n``episode-YYYY-MM-DD.md``, keeping the entry markers and front-matter\ncounters valid, then enqueues the index sync the same way appends do.\nRe-sending content equal to what is stored returns unchanged=true.",
+        "description": "Edit one episode's narrative, summary, or subject.\n\nRewrites one episode entry's summary/subject/content in place in its\ndaily ``episode-YYYY-MM-DD.md``, keeping its id, entry markers and\nfront-matter. Nothing is enqueued: the markdown write is all this route\ndoes, and the cascade's file watcher re-projects the changed file into\nthe index like any other markdown edit. A concurrent edit of the same\nepisode is detected and the patch re-applied, so neither is lost. At\nleast one patch field must be set (422 otherwise); unchanged=true means\nthe requested values already equal what is stored.",
         "operationId": "update_memory_api_v1_memory_update_post",
         "requestBody": {
           "content": {
@@ -2621,7 +2621,7 @@
           "memory"
         ],
         "summary": "Update Memory",
-        "description": "Edit one episode's narrative, summary, or subject.\n\nRewrites one episode entry's summary/subject/content in its daily\n``episode-YYYY-MM-DD.md``, keeping the entry markers and front-matter\ncounters valid, then enqueues the index sync the same way appends do.\nRe-sending content equal to what is stored returns unchanged=true.",
+        "description": "Edit one episode's narrative, summary, or subject.\n\nRewrites one episode entry's summary/subject/content in place in its\ndaily ``episode-YYYY-MM-DD.md``, keeping its id, entry markers and\nfront-matter. Nothing is enqueued: the markdown write is all this route\ndoes, and the cascade's file watcher re-projects the changed file into\nthe index like any other markdown edit. A concurrent edit of the same\nepisode is detected and the patch re-applied, so neither is lost. At\nleast one patch field must be set (422 otherwise); unchanged=true means\nthe requested values already equal what is stored.",
         "operationId": "update_memory_api_v2_memory_update_post",
         "requestBody": {
           "content": {
@@ -4576,7 +4576,7 @@
           "auth"
         ],
         "summary": "Create Session",
-        "description": "Create a session by validating an API key.\n\nSets an httpOnly, SameSite=Lax cookie that the console can use for\nsubsequent requests.",
+        "description": "Create a session by validating an API key.\n\nSets an httpOnly, SameSite=Lax cookie that the console can use for\nsubsequent requests; ``Secure`` when the request came over HTTPS. The\nsession expires after ``SESSION_MAX_AGE`` and dies with the key's secret\n(rotation or revocation).",
         "operationId": "create_session_api_v2_auth_session_post",
         "requestBody": {
           "content": {
@@ -4836,7 +4836,7 @@
           "admin"
         ],
         "summary": "Get Usage",
-        "description": "Get usage statistics for a time range.\n\nArgs:\n    range_param: One of ``24h``, ``7d``, ``30d``.\n\nReturns:\n    Bucketed usage data (hourly for 24h, daily otherwise) with totals.",
+        "description": "Get usage statistics for a time range.\n\nArgs:\n    range_param: One of ``24h``, ``7d``, ``30d``; anything else is a 400.\n\nReturns:\n    ``24h``: 24 hourly buckets (``YYYY-MM-DDTHH:00:00Z``, the last 24\n    whole UTC hours including the current one, zero-filled) counted from\n    the request logs. ``7d`` / ``30d``: daily buckets from the usage\n    counters.",
         "operationId": "get_usage_api_v2_admin_usage_get",
         "parameters": [
           {
@@ -6372,7 +6372,8 @@
           "SESSION_BUSY",
           "PURGE_IN_PROGRESS",
           "CROSS_SITE_REFUSED",
-          "PURGE_NONCE_INVALID"
+          "PURGE_NONCE_INVALID",
+          "FORBIDDEN"
         ],
         "title": "ErrorCode",
         "description": "Machine-readable error codes returned in the API error envelope.\n\nEach code maps to exactly one HTTP status code. Clients can switch on\nthis value to decide retry / display / routing behaviour without parsing\nthe human-readable ``message`` field."
@@ -8213,7 +8214,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "MemoryPatch",
-        "description": "Fields to update on an episode."
+        "description": "Fields to update on an episode; at least one must be set.\n\nAn empty patch requests nothing and is refused (422), so that\n``unchanged=true`` in the response only ever means \"the requested values\nequal what is stored\"."
       },
       "MemoryUpdateReason": {
         "properties": {
@@ -8516,6 +8517,11 @@
           "auth_mode": {
             "type": "string",
             "title": "Auth Mode"
+          },
+          "docs_enabled": {
+            "type": "boolean",
+            "title": "Docs Enabled",
+            "default": false
           },
           "quota": {
             "anyOf": [

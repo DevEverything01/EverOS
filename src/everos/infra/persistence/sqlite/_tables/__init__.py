@@ -10,6 +10,7 @@ every registered table.
 from .cluster import Cluster as Cluster
 from .cluster import ClusterMember as ClusterMember
 from .control import ApiKey as ApiKey
+from .control import ControlSetting as ControlSetting
 from .control import Feedback as Feedback
 from .control import RequestLog as RequestLog
 from .control import SchemaVersion as SchemaVersion
@@ -30,6 +31,7 @@ __all__ = [
     "ApiKey",
     "Cluster",
     "ClusterMember",
+    "ControlSetting",
     "ConversationStatus",
     "Feedback",
     "KnowledgeDocumentRow",

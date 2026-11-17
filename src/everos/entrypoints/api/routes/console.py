@@ -29,6 +29,21 @@ MIME_TYPES: dict[str, str] = {
 
 _STATIC_DIR = Path(__file__).resolve().parents[3] / "web" / "static"
 
+CONSOLE_CSP = (
+    "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; "
+    "img-src 'self' data:; frame-ancestors 'none'"
+)
+"""Content-Security-Policy for every console response.
+
+The console ships no inline script, handler or style attribute (markup carries
+``data-act`` / ``data-style`` and ``app.js`` wires them), so ``'self'`` is
+enough. ``img-src data:`` covers the favicon and the CSS select arrow."""
+
+_SECURITY_HEADERS = {
+    "Content-Security-Policy": CONSOLE_CSP,
+    "X-Content-Type-Options": "nosniff",
+}
+
 
 def _serve_index() -> FileResponse:
     """Serve the main index.html file."""
@@ -36,7 +51,7 @@ def _serve_index() -> FileResponse:
     return FileResponse(
         index_path,
         media_type="text/html; charset=utf-8",
-        headers={"Cache-Control": "no-store"},
+        headers={"Cache-Control": "no-store", **_SECURITY_HEADERS},
     )
 
 
@@ -72,7 +87,7 @@ async def console_assets(path: str) -> FileResponse | HTMLResponse:
             if suffix in {".woff2", ".png", ".svg", ".ico"}
             else "no-store"
         )
-        headers = {"Cache-Control": cache}
+        headers = {"Cache-Control": cache, **_SECURITY_HEADERS}
         return FileResponse(target, media_type=media_type, headers=headers)
 
     return _serve_index()

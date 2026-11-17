@@ -74,10 +74,12 @@ from .stores import OwnerDirDeletion as OwnerDirDeletion
 from .stores import OwnerDirStore as OwnerDirStore
 from .stores import ProfileStore as ProfileStore
 from .stores import ReflectionReportStore as ReflectionReportStore
+from .stores import ReplaceOutcome as ReplaceOutcome
 from .stores import SenderNameStore as SenderNameStore
 from .stores import SessionBufferStore as SessionBufferStore
 from .stores import SessionPurgeStore as SessionPurgeStore
 from .stores import SourceCheck as SourceCheck
+from .stores import VersionedEpisode as VersionedEpisode
 from .stores import WrittenDocument as WrittenDocument
 from .strategy import AppliesTo as AppliesTo
 from .strategy import Counter as Counter
@@ -135,6 +137,7 @@ __all__ = [
     "ProfileIndex",
     "ProfileStore",
     "ReflectionReportStore",
+    "ReplaceOutcome",
     "Scalar",
     "Scope",
     "ScoredKnowledgeTopic",
@@ -148,6 +151,7 @@ __all__ = [
     "StrategyFn",
     "StrategySpec",
     "Trigger",
+    "VersionedEpisode",
     "WrittenDocument",
     "all_of",
     "any_of",

@@ -95,6 +95,11 @@ _ERROR_RULES: Mapping[type[Exception], _Rule] = {
         message="deletion incomplete; retry the same request",
         log=("error", "memory_delete_incomplete"),
     ),
+    errors.InvalidMemoryIdError: _Rule(400, ErrorCode.BAD_REQUEST),
+    errors.MemoryOwnerMismatchError: _Rule(403, ErrorCode.FORBIDDEN),
+    errors.MemoryUpdateFailedError: _Rule(
+        500, ErrorCode.INTERNAL_ERROR, log=("error", "memory_update_failed")
+    ),
     errors.NotFoundError: _Rule(404, ErrorCode.NOT_FOUND),
     errors.ConflictError: _Rule(409, ErrorCode.CONFLICT),
     errors.ExtractionEmptyError: _Rule(422, ErrorCode.EXTRACTION_EMPTY),
@@ -180,9 +185,8 @@ async def request_validation_handler(
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """FastAPI HTTPException -> its own status code; a 5xx hides ``detail``."""
     if exc.status_code < 500:
-        return _error_response(
-            request, exc.status_code, ErrorCode.BAD_REQUEST, str(exc.detail)
-        )
+        code = ErrorCode.FORBIDDEN if exc.status_code == 403 else ErrorCode.BAD_REQUEST
+        return _error_response(request, exc.status_code, code, str(exc.detail))
     path = str(request.url.path)
     logger.error("http_exception_5xx", path=path, status_code=exc.status_code)
     return _error_response(

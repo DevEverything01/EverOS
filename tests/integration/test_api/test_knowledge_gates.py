@@ -42,6 +42,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from everos.entrypoints.api.dependencies import require_read, require_write
 from everos.entrypoints.api.exception_handlers import register_handlers
 from everos.entrypoints.api.routes import knowledge as knowledge_routes
 from tests.fakes import make_application, make_knowledge_service
@@ -83,6 +84,10 @@ def _build_app() -> FastAPI:
     # the effective paths become /api/v1/knowledge/... — same shape the
     # _GATED / _UNGATED constants below use.
     app.include_router(knowledge_routes.router, prefix="/api/v1")
+    # No auth middleware here: scope checks fail closed without it, and this
+    # suite is about capability gates, so the scope checks are waived.
+    app.dependency_overrides[require_write] = lambda: None
+    app.dependency_overrides[require_read] = lambda: None
     # Both providers unconfigured by default; tests opt into availability
     # per provider via the fixtures below.
     app.state.providers = {"embedding": None, "reranker": None}

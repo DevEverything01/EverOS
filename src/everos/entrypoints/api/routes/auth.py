@@ -8,7 +8,8 @@ Endpoints:
 - POST /auth/session - set session cookie (for console)
 - DELETE /auth/session - clear session cookie
 
-All key-management endpoints require ``admin`` scope.
+All key-management endpoints require ``admin`` scope (which implies
+``memory:write``); the session endpoints authenticate from their body.
 """
 
 from __future__ import annotations
@@ -22,14 +23,14 @@ from everos.core.utils.datetime import to_iso_format
 from everos.entrypoints.api.dependencies import (
     ControlStoreDep,
     RequestIdDep,
-    RequireAdminDep,
+    require_admin,
 )
 from everos.entrypoints.api.session import (
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE,
+    request_is_https,
     resolve_secret,
     sign_session,
-    verify_session,
 )
 
 router = APIRouter(tags=["auth"])
@@ -85,15 +86,10 @@ class SessionResponse(BaseModel):
     message: str
 
 
-def _require_admin() -> RequireAdminDep:
-    """Dependency marker for admin scope."""
-    pass
-
-
 @router.post(
     "/auth/keys",
     response_model=CreateKeyResponse,
-    dependencies=[Depends(_require_admin)],
+    dependencies=[Depends(require_admin)],
 )
 async def create_key(
     body: CreateKeyRequest,
@@ -119,7 +115,7 @@ async def create_key(
 @router.get(
     "/auth/keys",
     response_model=KeyListResponse,
-    dependencies=[Depends(_require_admin)],
+    dependencies=[Depends(require_admin)],
 )
 async def list_keys(
     store: ControlStoreDep,
@@ -148,7 +144,7 @@ async def list_keys(
 
 @router.delete(
     "/auth/keys/{key_id}",
-    dependencies=[Depends(_require_admin)],
+    dependencies=[Depends(require_admin)],
 )
 async def revoke_key(
     key_id: str,
@@ -173,7 +169,7 @@ async def revoke_key(
 @router.post(
     "/auth/keys/{key_id}/rotate",
     response_model=CreateKeyResponse,
-    dependencies=[Depends(_require_admin)],
+    dependencies=[Depends(require_admin)],
 )
 async def rotate_key(
     key_id: str,
@@ -202,21 +198,18 @@ async def rotate_key(
     )
 
 
-def session_secret(request: Request) -> str:
+async def session_secret(request: Request) -> str:
     """Dependency for the session signing secret."""
-    return resolve_secret(request)
+    return await resolve_secret(request)
 
 
 SessionSecretDep = Annotated[str, Depends(session_secret)]
 
 
-_sign_session = sign_session
-_verify_session = verify_session
-
-
 @router.post("/auth/session", response_model=SessionResponse)
 async def create_session(
     body: SessionRequest,
+    request: Request,
     response: Response,
     store: ControlStoreDep,
     secret: SessionSecretDep,
@@ -224,7 +217,9 @@ async def create_session(
     """Create a session by validating an API key.
 
     Sets an httpOnly, SameSite=Lax cookie that the console can use for
-    subsequent requests.
+    subsequent requests; ``Secure`` when the request came over HTTPS. The
+    session expires after ``SESSION_MAX_AGE`` and dies with the key's secret
+    (rotation or revocation).
     """
     api_key = await store.lookup_key(body.key)
     if api_key is None:
@@ -233,20 +228,21 @@ async def create_session(
             detail={"error": {"code": "unauthorized", "message": "Invalid API key"}},
         )
 
-    session_value = _sign_session(api_key.key_id, secret)
+    session_value = sign_session(api_key.key_id, api_key.hash, secret)
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=session_value,
         max_age=SESSION_MAX_AGE,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=request_is_https(request),
     )
     return SessionResponse(ok=True, message="Session created")
 
 
 @router.delete("/auth/session", response_model=SessionResponse)
 async def delete_session(
+    request: Request,
     response: Response,
 ) -> SessionResponse:
     """Clear the session cookie (logout)."""
@@ -254,5 +250,6 @@ async def delete_session(
         key=SESSION_COOKIE_NAME,
         httponly=True,
         samesite="lax",
+        secure=request_is_https(request),
     )
     return SessionResponse(ok=True, message="Session cleared")

@@ -22,7 +22,7 @@ function paintIcons() {
 
 const $ = s => document.querySelector(s);
 const view = () => $('#view');
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = s => String(s ?? '').replace(/[&<>"'`]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]));
 const fmt = n => (n ?? 0).toLocaleString('en-US');
 const unwrap = r => (r && typeof r === 'object' && 'data' in r ? r.data : r);
 
@@ -117,6 +117,12 @@ function hideLogin() {
   $('#loginError').style.display = 'none';
 }
 
+/* Server-side switches the console mirrors: the API-docs link only when the
+   server actually serves /docs ([server] docs_enabled). */
+function applyServerConfig(d) {
+  $('#apiDocsLink').style.display = d.docs_enabled ? '' : 'none';
+}
+
 async function doLogin() {
   const key = $('#loginKey').value.trim();
   if (!key) return;
@@ -126,6 +132,7 @@ async function doLogin() {
     hideLogin();
     $('#logoutBtn').style.display = 'block';
     route();
+    api('/api/v2/admin/overview').then(r => applyServerConfig(unwrap(r))).catch(() => {});
   } catch (e) {
     $('#loginError').textContent = 'Invalid API key';
     $('#loginError').style.display = 'block';
@@ -186,7 +193,7 @@ async function renderDashboard() {
     <div class="plan-mark">V</div>
     <div><h1>Self-hosted - ${fmt(c.episodes)} episodes</h1>
       <div class="sub">Last write: ${esc(ago(d.last_write))} - Storage: ${sys.data_mb || 0} MB - ${sys.store_files || 0} md files</div></div>
-    <div class="right"><button class="select" onclick="location.reload()">Refresh</button></div>
+    <div class="right"><button class="select" data-act="reload">Refresh</button></div>
   </div>
 
   <div class="h2">Total Account Usage</div>
@@ -195,7 +202,7 @@ async function renderDashboard() {
       <div class="stat-top"><span class="ico"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
         MemCell Units</div>
       <p class="desc">MemCells are atomic memory units that group related messages into semantic memories. Self-hosted has no quota limit.</p>
-      <div class="bar"><i style="width:${Math.min(100, (c.episodes || 0) / 80).toFixed(1)}%"></i></div>
+      <div class="bar"><i data-style="width:${Math.min(100, (c.episodes || 0) / 80).toFixed(1)}%"></i></div>
       <div class="big">${fmt(c.episodes)} <span>Episodes (extracted)</span></div>
       <div class="legend"><span class="dot"></span>Local md-first storage, no monthly reset</div>
     </div>
@@ -203,7 +210,7 @@ async function renderDashboard() {
       <div class="stat-top"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></span>
         Retrieval API Calls</div>
       <p class="desc">Total calls to Get memories and Search memories (from request logs, last 7 days).</p>
-      <div class="bar"><i style="width:${Math.min(100, (logsData.total / 2000) * 100).toFixed(1)}%"></i></div>
+      <div class="bar"><i data-style="width:${Math.min(100, (logsData.total / 2000) * 100).toFixed(1)}%"></i></div>
       <div class="big">${fmt(d.search_calls || 0)} <span>search calls - ${fmt(logsData.total)} total requests in 7 days</span></div>
       <div class="legend"><span class="dot"></span>${fmt(d.calls_today || 0)} calls today</div>
     </div>
@@ -211,8 +218,8 @@ async function renderDashboard() {
 
   <div class="h2">API Usage</div>
   <div class="card">
-    <div class="toolbar" style="margin-bottom:14px">
-      <div style="font-weight:700;font-size:15px">Request Volume</div>
+    <div class="toolbar" data-style="margin-bottom:14px">
+      <div data-style="font-weight:700;font-size:15px">Request Volume</div>
       <div class="grow"></div>
       <div class="seg" id="usageSeg"><button class="on" data-b="hour">Hourly</button><button data-b="day">Daily</button></div>
     </div>
@@ -283,7 +290,7 @@ async function renderBank() {
   if (!bankState.user && users.length) bankState.user = users[0].id;
 
   const tabs = `
-  <div style="display:flex;justify-content:center;margin:4px 0 18px">
+  <div data-style="display:flex;justify-content:center;margin:4px 0 18px">
     <div class="tabs" id="bankTabs">
       <button data-t="overview" class="${bankState.tab === 'overview' ? 'on' : ''}">Overview</button>
       <button data-t="user" class="${bankState.tab === 'user' ? 'on' : ''}">User Memories</button>
@@ -302,11 +309,11 @@ async function renderBank() {
         <div class="tile t-green"><div class="t"><span>Skills</span></div><div class="n">${fmt(c.skills)}</div></div>
       </div>
       <div class="card">
-        <div class="toolbar" style="margin-bottom:8px">
-          <div style="font-weight:700;font-size:15px">Users</div>
+        <div class="toolbar" data-style="margin-bottom:8px">
+          <div data-style="font-weight:700;font-size:15px">Users</div>
         </div>
         <table><thead><tr><th>User ID</th><th>Facts</th><th>Episodes</th><th>Last Activity</th></tr></thead>
-        <tbody>${users.map(u => `<tr style="cursor:pointer" onclick="bankState.user='${esc(u.id)}';bankState.tab='user';renderBank()">
+        <tbody>${users.map(u => `<tr data-style="cursor:pointer" data-act="openUser" data-user="${esc(u.id)}">
           <td>${esc(u.id)}</td><td>${u.profiles || 0}</td><td>${u.episodes || 0}</td><td>${esc(ago(u.last))}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">No users</td></tr>'}
         </tbody></table>
       </div>`;
@@ -338,14 +345,14 @@ async function renderBank() {
       </div>
       <div class="bank">
         <div class="pcol">
-          <div class="pcard" style="background:#fbfaf8">
-            <h4 style="margin:0 0 6px">Profile Summary</h4>
-            <div style="font-size:12.5px;color:#6b6660;line-height:1.6">${esc(prof.summary || 'No summary yet')}</div>
+          <div class="pcard" data-style="background:#fbfaf8">
+            <h4 data-style="margin:0 0 6px">Profile Summary</h4>
+            <div data-style="font-size:12.5px;color:#6b6660;line-height:1.6">${esc(prof.summary || 'No summary yet')}</div>
           </div>
           <div class="pcard">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <h4 style="margin:0">Profile Facts</h4>
-              <button class="select" onclick="showAddProfile()">+ Add</button>
+            <div data-style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <h4 data-style="margin:0">Profile Facts</h4>
+              <button class="select" data-act="addProfile">+ Add</button>
             </div>
             <div id="profileItems">
               ${items.map(i => `<div class="profile-item" data-id="${esc(i.item_id || '')}" data-type="${esc(i.item_type || 'explicit_info')}">
@@ -354,18 +361,18 @@ async function renderBank() {
                   <div class="pi-desc">${esc(i.description)}</div>
                 </div>
                 <div class="pi-actions">
-                  <button class="pi-btn" onclick="showEditProfile('${esc(i.item_id)}', '${esc(i.category)}', '${esc(i.description.replace(/'/g, "\\'"))}', '${esc(i.item_type || 'explicit_info')}')">Edit</button>
-                  <button class="pi-btn del" onclick="confirmDeleteProfile('${esc(i.item_id)}', '${esc(i.item_type || 'explicit_info')}')">Delete</button>
+                  <button class="pi-btn" data-act="editProfile" data-id="${esc(i.item_id)}" data-cat="${esc(i.category)}" data-desc="${esc(i.description)}" data-type="${esc(i.item_type || 'explicit_info')}">Edit</button>
+                  <button class="pi-btn del" data-act="deleteProfile" data-id="${esc(i.item_id)}" data-type="${esc(i.item_type || 'explicit_info')}">Delete</button>
                 </div>
               </div>`).join('') || '<div class="empty">No profile facts</div>'}
             </div>
           </div>
         </div>
         <div>
-          <div class="toolbar" style="margin-bottom:12px">
-            <div style="font-weight:700;font-size:15px">Episodes</div>
+          <div class="toolbar" data-style="margin-bottom:12px">
+            <div data-style="font-weight:700;font-size:15px">Episodes</div>
             <div class="grow"></div>
-            <input class="input" id="epSearch" placeholder="Search episodes..." value="${esc(bankState.q)}" style="width:220px">
+            <input class="input" id="epSearch" placeholder="Search episodes..." value="${esc(bankState.q)}" data-style="width:220px">
           </div>
           <div id="epList">
             ${episodes.slice(0, bankState.limit).map(e => `<div class="ep" data-id="${esc(e.id)}">
@@ -373,16 +380,16 @@ async function renderBank() {
                 <span>${esc(shortTime(e.timestamp))}</span>
                 <span class="tagline">${esc(e.id?.slice(0, 8) || '')}</span>
                 <div class="ep-actions">
-                  <button class="pi-btn" onclick="event.stopPropagation();showFeedback('${esc(e.id)}',1)" title="Thumbs up">+</button>
-                  <button class="pi-btn" onclick="event.stopPropagation();showFeedback('${esc(e.id)}',-1)" title="Thumbs down">-</button>
-                  <button class="pi-btn" onclick="event.stopPropagation();showEditEpisode('${esc(e.id)}')" title="Edit">Edit</button>
+                  <button class="pi-btn" data-act="feedback" data-id="${esc(e.id)}" data-rating="1" title="Thumbs up">+</button>
+                  <button class="pi-btn" data-act="feedback" data-id="${esc(e.id)}" data-rating="-1" title="Thumbs down">-</button>
+                  <button class="pi-btn" data-act="editEpisode" data-id="${esc(e.id)}" title="Edit">Edit</button>
                 </div>
                 <span class="tog">+</span>
               </div>
               <div class="txt">${esc((e.summary || e.subject || '').slice(0, 300))}</div>
               <div class="more"><b>Subject</b>\n${esc(e.subject || '')}\n\n<b>Summary</b>\n${esc(e.summary || '')}\n\n<b>Content</b>\n${esc(e.content || '')}</div>
             </div>`).join('') || '<div class="empty">No episodes</div>'}
-            ${episodes.length > bankState.limit ? `<button class="select" id="moreEp" style="width:100%">Load more (${bankState.limit}/${episodes.length})</button>` : ''}
+            ${episodes.length > bankState.limit ? `<button class="select" id="moreEp" data-style="width:100%">Load more (${bankState.limit}/${episodes.length})</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -429,15 +436,15 @@ function wireEpisodes() {
 }
 
 /* ---------- profile editing ---------- */
-window.showAddProfile = function() {
+const showAddProfile = function() {
   showModal('Add Profile Fact', `
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#6b6660">Category</label>
-      <input type="text" id="profCategory" class="input" style="width:100%" placeholder="e.g. Preferences, Goals, Identity">
+    <div data-style="margin-bottom:12px">
+      <label data-style="font-size:12px;color:#6b6660">Category</label>
+      <input type="text" id="profCategory" class="input" data-style="width:100%" placeholder="e.g. Preferences, Goals, Identity">
     </div>
     <div>
-      <label style="font-size:12px;color:#6b6660">Description</label>
-      <textarea id="profDesc" class="input" style="width:100%;height:80px" placeholder="Describe the fact..."></textarea>
+      <label data-style="font-size:12px;color:#6b6660">Description</label>
+      <textarea id="profDesc" class="input" data-style="width:100%;height:80px" placeholder="Describe the fact..."></textarea>
     </div>
   `, [
     { label: 'Cancel', action: 'cancel' },
@@ -461,15 +468,15 @@ window.showAddProfile = function() {
   ]);
 };
 
-window.showEditProfile = function(itemId, category, description, itemType) {
+const showEditProfile = function(itemId, category, description, itemType) {
   showModal('Edit Profile Fact', `
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#6b6660">Category</label>
-      <input type="text" id="profCategory" class="input" style="width:100%" value="${esc(category)}">
+    <div data-style="margin-bottom:12px">
+      <label data-style="font-size:12px;color:#6b6660">Category</label>
+      <input type="text" id="profCategory" class="input" data-style="width:100%" value="${esc(category)}">
     </div>
     <div>
-      <label style="font-size:12px;color:#6b6660">Description</label>
-      <textarea id="profDesc" class="input" style="width:100%;height:80px">${esc(description)}</textarea>
+      <label data-style="font-size:12px;color:#6b6660">Description</label>
+      <textarea id="profDesc" class="input" data-style="width:100%;height:80px">${esc(description)}</textarea>
     </div>
   `, [
     { label: 'Cancel', action: 'cancel' },
@@ -494,7 +501,7 @@ window.showEditProfile = function(itemId, category, description, itemType) {
   ]);
 };
 
-window.confirmDeleteProfile = function(itemId, itemType) {
+const confirmDeleteProfile = function(itemId, itemType) {
   showModal('Delete Profile Fact', '<p>Are you sure you want to delete this profile fact?</p>', [
     { label: 'Cancel', action: 'cancel' },
     { label: 'Delete', action: 'delete', primary: true, onClick: async () => {
@@ -515,15 +522,15 @@ window.confirmDeleteProfile = function(itemId, itemType) {
 };
 
 /* ---------- episode editing ---------- */
-window.showEditEpisode = function(episodeId) {
+const showEditEpisode = function(episodeId) {
   showModal('Edit Episode', `
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#6b6660">Summary</label>
-      <textarea id="epSummary" class="input" style="width:100%;height:60px" placeholder="Episode summary"></textarea>
+    <div data-style="margin-bottom:12px">
+      <label data-style="font-size:12px;color:#6b6660">Summary</label>
+      <textarea id="epSummary" class="input" data-style="width:100%;height:60px" placeholder="Episode summary"></textarea>
     </div>
     <div>
-      <label style="font-size:12px;color:#6b6660">Subject</label>
-      <input type="text" id="epSubject" class="input" style="width:100%" placeholder="Episode subject">
+      <label data-style="font-size:12px;color:#6b6660">Subject</label>
+      <input type="text" id="epSubject" class="input" data-style="width:100%" placeholder="Episode subject">
     </div>
   `, [
     { label: 'Cancel', action: 'cancel' },
@@ -546,7 +553,7 @@ window.showEditEpisode = function(episodeId) {
   ]);
 };
 
-window.showFeedback = async function(memoryId, rating) {
+const showFeedback = async function(memoryId, rating) {
   try {
     await apiPost('/api/v2/memory/feedback', {
       memory_type: 'episode',
@@ -566,11 +573,11 @@ async function renderPlayground() {
   if (!pgState.user && users.length) pgState.user = users[0].id;
 
   view().innerHTML = `
-    <div class="head"><div><h1 style="font-size:20px">Playground</h1>
+    <div class="head"><div><h1 data-style="font-size:20px">Playground</h1>
       <div class="sub">Test memory search, context retrieval, and memory addition.</div></div></div>
 
-    <div class="card" style="margin-bottom:16px">
-      <div class="toolbar" style="margin-bottom:12px">
+    <div class="card" data-style="margin-bottom:16px">
+      <div class="toolbar" data-style="margin-bottom:12px">
         <div class="seg" id="pgMode">
           <button class="${pgState.mode === 'search' ? 'on' : ''}" data-m="search">Search</button>
           <button class="${pgState.mode === 'context' ? 'on' : ''}" data-m="context">Context</button>
@@ -580,9 +587,9 @@ async function renderPlayground() {
 
       <div class="toolbar">
         <select class="select" id="pgUser">${users.map(u => `<option value="${esc(u.id)}" ${u.id === pgState.user ? 'selected' : ''}>${esc(u.id)}</option>`).join('')}</select>
-        <input class="input" id="pgQ" placeholder="${pgState.mode === 'add' ? 'Enter memory content...' : 'Enter search query...'}" style="flex:1;min-width:260px" value="${esc(pgState.q)}">
+        <input class="input" id="pgQ" placeholder="${pgState.mode === 'add' ? 'Enter memory content...' : 'Enter search query...'}" data-style="flex:1;min-width:260px" value="${esc(pgState.q)}">
         <select class="select" id="pgK"><option value="6">top 6</option><option value="10">top 10</option><option value="3">top 3</option></select>
-        <button class="select" id="pgGo" style="background:#f5c542;border-color:#e7b93a;font-weight:600">${pgState.mode === 'add' ? 'Add' : 'Search'}</button>
+        <button class="select" id="pgGo" data-style="background:#f5c542;border-color:#e7b93a;font-weight:600">${pgState.mode === 'add' ? 'Add' : 'Search'}</button>
       </div>
     </div>
 
@@ -647,7 +654,7 @@ function pgRender(res) {
     const data = res.data || res;
     return `<div class="card">
       <div class="stat-top">Context (${data.tokens_estimate || 0} tokens)</div>
-      <pre class="mono" style="background:#f7f6f3;padding:12px;border-radius:10px;overflow:auto;font-size:11.5px;line-height:1.6;white-space:pre-wrap">${esc(data.context || '')}</pre>
+      <pre class="mono" data-style="background:#f7f6f3;padding:12px;border-radius:10px;overflow:auto;font-size:11.5px;line-height:1.6;white-space:pre-wrap">${esc(data.context || '')}</pre>
     </div>`;
   }
 
@@ -656,8 +663,8 @@ function pgRender(res) {
   const profiles = data.profiles || [];
 
   const block = (title, items) => items.length ? `
-    <div style="margin-bottom:14px">
-      <div style="font-weight:700;font-size:15px;margin:6px 0 10px">${title} <span class="tagline">${items.length}</span></div>
+    <div data-style="margin-bottom:14px">
+      <div data-style="font-weight:700;font-size:15px;margin:6px 0 10px">${title} <span class="tagline">${items.length}</span></div>
       ${items.map(i => `<div class="ep">
         <div class="top">
           <span>${esc(shortTime(i.timestamp))}</span>
@@ -673,8 +680,8 @@ function pgRender(res) {
   const html = block('Episodes', episodes) + block('Profiles', profiles);
   const out = html || '<div class="empty">No results</div>';
 
-  return `<div class="card tight" style="padding:16px 18px">
-    <div class="foot-note" style="margin:0 0 10px">request_id <span class="mono">${esc(res.request_id || '-')}</span></div>
+  return `<div class="card tight" data-style="padding:16px 18px">
+    <div class="foot-note" data-style="margin:0 0 10px">request_id <span class="mono">${esc(res.request_id || '-')}</span></div>
     ${out}</div>`;
 }
 
@@ -691,14 +698,14 @@ async function renderLogs() {
   const logs = d.items || [];
 
   view().innerHTML = `
-    <div class="head"><div><h1 style="font-size:20px">Request Logs</h1>
+    <div class="head"><div><h1 data-style="font-size:20px">Request Logs</h1>
       <div class="sub">API request history with status and latency information.</div></div></div>
-    <div class="toolbar" style="margin-bottom:16px">
+    <div class="toolbar" data-style="margin-bottom:16px">
       <select class="select" id="fMethod"><option value="">All methods</option>
         ${['GET', 'POST', 'PUT', 'DELETE'].map(m => `<option value="${m}" ${logState.method === m ? 'selected' : ''}>${m}</option>`).join('')}</select>
       <select class="select" id="fStatus"><option value="">All status</option>
         ${['2', '3', '4', '5'].map(s => `<option value="${s}" ${logState.status === s ? 'selected' : ''}>${s}xx</option>`).join('')}</select>
-      <input class="input" id="fQ" placeholder="Filter by endpoint..." value="${esc(logState.q)}" style="width:240px">
+      <input class="input" id="fQ" placeholder="Filter by endpoint..." value="${esc(logState.q)}" data-style="width:240px">
       <div class="grow"></div>
       <span class="tagline">${fmt(d.total)} total</span>
     </div>
@@ -732,9 +739,9 @@ async function renderKeys() {
 
   view().innerHTML = `
     <div class="head">
-      <div><h1 style="font-size:20px">API Keys</h1>
+      <div><h1 data-style="font-size:20px">API Keys</h1>
         <div class="sub">Manage API keys for authentication.</div></div>
-      <div class="right"><button class="select" onclick="showCreateKey()" style="background:#f5c542;border-color:#e7b93a;font-weight:600">+ Create Key</button></div>
+      <div class="right"><button class="select" data-act="createKey" data-style="background:#f5c542;border-color:#e7b93a;font-weight:600">+ Create Key</button></div>
     </div>
     <div class="card tight">
       <table><thead><tr><th>Name</th><th>Prefix</th><th>Scopes</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead>
@@ -745,22 +752,22 @@ async function renderKeys() {
         <td>${esc(ago(k.created_at))}</td>
         <td>${esc(k.last_used_at ? ago(k.last_used_at) : 'Never')}</td>
         <td>
-          ${!k.revoked_at ? `<button class="pi-btn" onclick="rotateKey('${esc(k.key_id)}')">Rotate</button>
-          <button class="pi-btn del" onclick="revokeKey('${esc(k.key_id)}')">Revoke</button>` : '<span class="pill err">Revoked</span>'}
+          ${!k.revoked_at ? `<button class="pi-btn" data-act="rotateKey" data-id="${esc(k.key_id)}">Rotate</button>
+          <button class="pi-btn del" data-act="revokeKey" data-id="${esc(k.key_id)}">Revoke</button>` : '<span class="pill err">Revoked</span>'}
         </td></tr>`).join('') || '<tr><td colspan="6" class="empty">No API keys</td></tr>'}
       </tbody></table>
     </div>`;
 }
 
-window.showCreateKey = function() {
+const showCreateKey = function() {
   showModal('Create API Key', `
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#6b6660">Name</label>
-      <input type="text" id="keyName" class="input" style="width:100%" placeholder="e.g. my-app">
+    <div data-style="margin-bottom:12px">
+      <label data-style="font-size:12px;color:#6b6660">Name</label>
+      <input type="text" id="keyName" class="input" data-style="width:100%" placeholder="e.g. my-app">
     </div>
     <div>
-      <label style="font-size:12px;color:#6b6660">Scopes</label>
-      <div style="margin-top:8px">
+      <label data-style="font-size:12px;color:#6b6660">Scopes</label>
+      <div data-style="margin-top:8px">
         <label><input type="checkbox" id="scopeRead" checked> memory:read</label><br>
         <label><input type="checkbox" id="scopeWrite" checked> memory:write</label><br>
         <label><input type="checkbox" id="scopeAdmin"> admin</label>
@@ -780,8 +787,8 @@ window.showCreateKey = function() {
         hideModal();
         showModal('API Key Created', `
           <p>Your new API key has been created. <strong>Copy it now - you won't see it again!</strong></p>
-          <div style="background:#f7f6f3;padding:12px;border-radius:10px;margin-top:12px">
-            <code style="word-break:break-all">${esc(res.key)}</code>
+          <div data-style="background:#f7f6f3;padding:12px;border-radius:10px;margin-top:12px">
+            <code data-style="word-break:break-all">${esc(res.key)}</code>
           </div>
         `, [{ label: 'Done', action: 'cancel' }]);
         renderKeys();
@@ -790,7 +797,7 @@ window.showCreateKey = function() {
   ]);
 };
 
-window.rotateKey = async function(keyId) {
+const rotateKey = async function(keyId) {
   showModal('Rotate API Key', '<p>This will generate a new secret for this key. The old secret will stop working immediately.</p>', [
     { label: 'Cancel', action: 'cancel' },
     { label: 'Rotate', action: 'rotate', primary: true, onClick: async () => {
@@ -799,8 +806,8 @@ window.rotateKey = async function(keyId) {
         hideModal();
         showModal('Key Rotated', `
           <p>Your new API key secret. <strong>Copy it now - you won't see it again!</strong></p>
-          <div style="background:#f7f6f3;padding:12px;border-radius:10px;margin-top:12px">
-            <code style="word-break:break-all">${esc(res.key)}</code>
+          <div data-style="background:#f7f6f3;padding:12px;border-radius:10px;margin-top:12px">
+            <code data-style="word-break:break-all">${esc(res.key)}</code>
           </div>
         `, [{ label: 'Done', action: 'cancel' }]);
         renderKeys();
@@ -809,7 +816,7 @@ window.rotateKey = async function(keyId) {
   ]);
 };
 
-window.revokeKey = function(keyId) {
+const revokeKey = function(keyId) {
   showModal('Revoke API Key', '<p>Are you sure you want to revoke this key? It will stop working immediately.</p>', [
     { label: 'Cancel', action: 'cancel' },
     { label: 'Revoke', action: 'revoke', primary: true, onClick: async () => {
@@ -832,9 +839,9 @@ async function renderKnowledge() {
 
   view().innerHTML = `
     <div class="head">
-      <div><h1 style="font-size:20px">Knowledge Bases</h1>
+      <div><h1 data-style="font-size:20px">Knowledge Bases</h1>
         <div class="sub">Manage knowledge bases and documents.</div></div>
-      <div class="right"><button class="select" onclick="showCreateKB()" style="background:#f5c542;border-color:#e7b93a;font-weight:600">+ Create KB</button></div>
+      <div class="right"><button class="select" data-act="createKB" data-style="background:#f5c542;border-color:#e7b93a;font-weight:600">+ Create KB</button></div>
     </div>
     <div class="card tight">
       <table><thead><tr><th>Name</th><th>Description</th><th>Documents</th><th>Actions</th></tr></thead>
@@ -843,22 +850,22 @@ async function renderKnowledge() {
         <td>${esc(kb.description || '-')}</td>
         <td>${kb.doc_count || 0}</td>
         <td>
-          <button class="pi-btn" onclick="showUploadDoc('${esc(kb.kb_id)}')">Upload</button>
-          <button class="pi-btn del" onclick="deleteKB('${esc(kb.kb_id)}')">Delete</button>
+          <button class="pi-btn" data-act="uploadDoc" data-id="${esc(kb.kb_id)}">Upload</button>
+          <button class="pi-btn del" data-act="deleteKB" data-id="${esc(kb.kb_id)}">Delete</button>
         </td></tr>`).join('') || '<tr><td colspan="4" class="empty">No knowledge bases</td></tr>'}
       </tbody></table>
     </div>`;
 }
 
-window.showCreateKB = function() {
+const showCreateKB = function() {
   showModal('Create Knowledge Base', `
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#6b6660">Name</label>
-      <input type="text" id="kbName" class="input" style="width:100%" placeholder="e.g. docs">
+    <div data-style="margin-bottom:12px">
+      <label data-style="font-size:12px;color:#6b6660">Name</label>
+      <input type="text" id="kbName" class="input" data-style="width:100%" placeholder="e.g. docs">
     </div>
     <div>
-      <label style="font-size:12px;color:#6b6660">Description</label>
-      <input type="text" id="kbDesc" class="input" style="width:100%" placeholder="Optional description">
+      <label data-style="font-size:12px;color:#6b6660">Description</label>
+      <input type="text" id="kbDesc" class="input" data-style="width:100%" placeholder="Optional description">
     </div>
   `, [
     { label: 'Cancel', action: 'cancel' },
@@ -874,15 +881,15 @@ window.showCreateKB = function() {
   ]);
 };
 
-window.showUploadDoc = function(kbId) {
+const showUploadDoc = function(kbId) {
   showModal('Upload Document', `
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#6b6660">Title</label>
-      <input type="text" id="docTitle" class="input" style="width:100%" placeholder="Document title">
+    <div data-style="margin-bottom:12px">
+      <label data-style="font-size:12px;color:#6b6660">Title</label>
+      <input type="text" id="docTitle" class="input" data-style="width:100%" placeholder="Document title">
     </div>
     <div>
-      <label style="font-size:12px;color:#6b6660">Content (Markdown)</label>
-      <textarea id="docContent" class="input" style="width:100%;height:150px" placeholder="# Document content..."></textarea>
+      <label data-style="font-size:12px;color:#6b6660">Content (Markdown)</label>
+      <textarea id="docContent" class="input" data-style="width:100%;height:150px" placeholder="# Document content..."></textarea>
     </div>
   `, [
     { label: 'Cancel', action: 'cancel' },
@@ -899,7 +906,7 @@ window.showUploadDoc = function(kbId) {
   ]);
 };
 
-window.deleteKB = function(kbId) {
+const deleteKB = function(kbId) {
   showModal('Delete Knowledge Base', '<p>Are you sure you want to delete this knowledge base and all its documents?</p>', [
     { label: 'Cancel', action: 'cancel' },
     { label: 'Delete', action: 'delete', primary: true, onClick: async () => {
@@ -922,7 +929,7 @@ async function renderSettings() {
   };
 
   view().innerHTML = `
-    <div class="head"><div><h1 style="font-size:20px">Settings</h1>
+    <div class="head"><div><h1 data-style="font-size:20px">Settings</h1>
       <div class="sub">View and configure your EverOS instance.</div></div></div>
 
     <div class="h2">Instance Information</div>
@@ -939,19 +946,55 @@ async function renderSettings() {
     <div class="h2">Configuration</div>
     <div class="card">
       <p class="desc">Configuration is managed via <code>everos.toml</code> in your memory root directory. Use the CLI to modify settings:</p>
-      <pre class="mono" style="background:#f7f6f3;padding:12px;border-radius:10px;overflow:auto;font-size:11.5px;line-height:1.6">everos config show        # View current config
+      <pre class="mono" data-style="background:#f7f6f3;padding:12px;border-radius:10px;overflow:auto;font-size:11.5px;line-height:1.6">everos config show        # View current config
 everos config edit        # Edit configuration</pre>
     </div>
 
     <div class="h2">API Documentation</div>
     <div class="card">
-      <p class="desc">Interactive API documentation is available at:</p>
-      <div style="margin-top:12px">
-        <a href="/docs" target="_blank" class="select" style="text-decoration:none">OpenAPI (Swagger)</a>
-        <a href="/redoc" target="_blank" class="select" style="text-decoration:none;margin-left:8px">ReDoc</a>
-      </div>
+      ${d.docs_enabled ? `<p class="desc">Interactive API documentation is available at:</p>
+      <div data-style="margin-top:12px">
+        <a href="/docs" target="_blank" class="select" data-style="text-decoration:none">OpenAPI (Swagger)</a>
+        <a href="/redoc" target="_blank" class="select" data-style="text-decoration:none;margin-left:8px">ReDoc</a>
+      </div>` : `<p class="desc">Interactive API documentation is disabled on this server. Set <code>[server] docs_enabled = true</code> to serve it at <code>/docs</code>.</p>`}
     </div>`;
 }
+
+/* ---------- click actions (no inline handlers: CSP forbids them) ---------- */
+const ACTIONS = {
+  reload: () => location.reload(),
+  dismissPromo: el => { el.parentElement.style.display = 'none'; },
+  openUser: el => { bankState.user = el.dataset.user; bankState.tab = 'user'; renderBank(); },
+  addProfile: () => showAddProfile(),
+  editProfile: el => showEditProfile(el.dataset.id, el.dataset.cat, el.dataset.desc, el.dataset.type),
+  deleteProfile: el => confirmDeleteProfile(el.dataset.id, el.dataset.type),
+  feedback: el => showFeedback(el.dataset.id, Number(el.dataset.rating)),
+  editEpisode: el => showEditEpisode(el.dataset.id),
+  createKey: () => showCreateKey(),
+  rotateKey: el => rotateKey(el.dataset.id),
+  revokeKey: el => revokeKey(el.dataset.id),
+  createKB: () => showCreateKB(),
+  uploadDoc: el => showUploadDoc(el.dataset.id),
+  deleteKB: el => deleteKB(el.dataset.id),
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el || !Object.hasOwn(ACTIONS, el.dataset.act)) return;
+  e.stopPropagation();
+  ACTIONS[el.dataset.act](el, e);
+});
+
+/* Inline style attributes are blocked by the CSP; markup carries them as
+   data-style and they are applied through the CSSOM, which the CSP allows. */
+function applyStyles(root) {
+  if (root.nodeType !== 1) return;
+  if (root.dataset && root.dataset.style !== undefined) root.style.cssText = root.dataset.style;
+  root.querySelectorAll('[data-style]').forEach(el => { el.style.cssText = el.dataset.style; });
+}
+new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(applyStyles)))
+  .observe(document.documentElement, { childList: true, subtree: true });
+applyStyles(document.documentElement);
 
 /* ---------- router ---------- */
 const routes = {
@@ -977,7 +1020,7 @@ async function route() {
   } catch (err) {
     if (err.message === 'Unauthorized') return;
     view().innerHTML = `<div class="card"><div class="stat-top">Error</div><div class="desc">${esc(err.message || err)}</div>
-      <button class="select" onclick="location.reload()">Retry</button></div>`;
+      <button class="select" data-act="reload">Retry</button></div>`;
   }
 }
 
@@ -989,6 +1032,7 @@ async function init() {
     $('#logoutBtn').style.display = 'block';
     $('#userVersion').textContent = 'v' + (d.version || d.system?.version || '1.7.0');
     if (d.space) $('#spaceName').textContent = d.space;
+    applyServerConfig(d);
   } catch (e) {
     if (e.message === 'Unauthorized') {
       showLogin();

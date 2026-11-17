@@ -16,9 +16,9 @@ from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from everos.core.errors import NotFoundError
@@ -27,16 +27,17 @@ from everos.entrypoints.api.dependencies import (
     ApplicationDep,
     ControlStoreDep,
     RequestIdDep,
-    RequireAdminDep,
+    require_admin,
 )
+from everos.entrypoints.api.middleware.request_logging import metric_for_path
 from everos.entrypoints.api.schemas import SuccessEnvelope
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+if TYPE_CHECKING:
+    from everos.service.control import ControlStore
 
-
-def _require_admin() -> RequireAdminDep:
-    """Dependency marker for admin scope."""
-    pass
+router = APIRouter(
+    prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)]
+)
 
 
 # ── Request logs ────────────────────────────────────────────────────────────
@@ -67,7 +68,6 @@ class RequestLogListResponse(BaseModel):
 @router.get(
     "/request-logs",
     response_model=SuccessEnvelope[RequestLogListResponse],
-    dependencies=[Depends(_require_admin)],
 )
 async def list_request_logs(
     store: ControlStoreDep,
@@ -131,7 +131,6 @@ async def list_request_logs(
 @router.get(
     "/request-logs/{log_id}",
     response_model=SuccessEnvelope[RequestLogItem],
-    dependencies=[Depends(_require_admin)],
 )
 async def get_request_log(
     log_id: int,
@@ -188,7 +187,6 @@ class UsageResponse(BaseModel):
 @router.get(
     "/usage",
     response_model=SuccessEnvelope[UsageResponse],
-    dependencies=[Depends(_require_admin)],
 )
 async def get_usage(
     store: ControlStoreDep,
@@ -199,45 +197,77 @@ async def get_usage(
     """Get usage statistics for a time range.
 
     Args:
-        range_param: One of ``24h``, ``7d``, ``30d``.
+        range_param: One of ``24h``, ``7d``, ``30d``; anything else is a 400.
 
     Returns:
-        Bucketed usage data (hourly for 24h, daily otherwise) with totals.
+        ``24h``: 24 hourly buckets (``YYYY-MM-DDTHH:00:00Z``, the last 24
+        whole UTC hours including the current one, zero-filled) counted from
+        the request logs. ``7d`` / ``30d``: daily buckets from the usage
+        counters.
     """
     now = get_utc_now()
     if range_param == "24h":
-        from_date = now - dt.timedelta(hours=24)
-    elif range_param == "7d":
-        from_date = now - dt.timedelta(days=7)
-    elif range_param == "30d":
-        from_date = now - dt.timedelta(days=30)
+        data = await _hourly_usage(store, now)
+    elif range_param in _DAILY_RANGES:
+        data = await _daily_usage(store, now, _DAILY_RANGES[range_param])
     else:
-        from_date = now - dt.timedelta(hours=24)
+        raise HTTPException(
+            status_code=400,
+            detail=f"invalid range {range_param!r}; use one of 24h, 7d, 30d",
+        )
+    return SuccessEnvelope(request_id=request_id, data=data)
 
-    from_str = from_date.strftime("%Y-%m-%d")
-    to_str = now.strftime("%Y-%m-%d")
 
-    usage_rows = await store.get_usage(from_str, to_str)
+_DAILY_RANGES = {"7d": 7, "30d": 30}
+_HOURS = 24
 
-    by_day: dict[str, dict[str, int]] = {}
+
+async def _hourly_usage(store: ControlStore, now: dt.datetime) -> UsageResponse:
+    """The last 24 whole UTC hours (current hour included), from request logs."""
+    current = now.replace(minute=0, second=0, microsecond=0)
+    first = current - dt.timedelta(hours=_HOURS - 1)
+    hours = [first + dt.timedelta(hours=i) for i in range(_HOURS)]
+    buckets: dict[str, dict[str, int]] = {h.strftime("%Y-%m-%dT%H"): {} for h in hours}
+    rows = await store.request_counts_by_hour(first, current + dt.timedelta(hours=1))
     totals: dict[str, int] = {}
 
-    for row in usage_rows:
-        day = row.day
-        if day not in by_day:
-            by_day[day] = {}
-        by_day[day][row.metric] = row.value
-        totals[row.metric] = totals.get(row.metric, 0) + row.value
+    def add(metrics: dict[str, int], name: str, n: int) -> None:
+        metrics[name] = metrics.get(name, 0) + n
+        totals[name] = totals.get(name, 0) + n
 
+    for hour, path, is_error, count in rows:
+        metrics = buckets.get(hour)
+        if metrics is None:
+            continue
+        add(metrics, "requests", count)
+        metric = metric_for_path(path)
+        if metric:
+            add(metrics, metric, count)
+        if is_error:
+            add(metrics, "errors", count)
+    series = [
+        UsageBucket(bucket=f"{hour}:00:00Z", metrics=metrics)
+        for hour, metrics in buckets.items()
+    ]
+    return UsageResponse(series=series, totals=totals, quota=None)
+
+
+async def _daily_usage(
+    store: ControlStore, now: dt.datetime, days: int
+) -> UsageResponse:
+    """The last ``days`` UTC days (today included), from the daily counters."""
+    from_str = (now - dt.timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    to_str = now.strftime("%Y-%m-%d")
+    by_day: dict[str, dict[str, int]] = {}
+    totals: dict[str, int] = {}
+    for row in await store.get_usage(from_str, to_str):
+        by_day.setdefault(row.day, {})[row.metric] = row.value
+        totals[row.metric] = totals.get(row.metric, 0) + row.value
     series = [
         UsageBucket(bucket=day, metrics=metrics)
         for day, metrics in sorted(by_day.items())
     ]
-
-    return SuccessEnvelope(
-        request_id=request_id,
-        data=UsageResponse(series=series, totals=totals, quota=None),
-    )
+    return UsageResponse(series=series, totals=totals, quota=None)
 
 
 # ── Admin overview ──────────────────────────────────────────────────────────
@@ -264,6 +294,9 @@ class OverviewResponse(BaseModel):
     model: str | None = None
     version: str
     auth_mode: str
+    docs_enabled: bool = False
+    """Whether ``/docs`` / ``/redoc`` / ``/openapi.json`` are served; the
+    console hides its API-docs links otherwise."""
     quota: dict[str, Any] | None = None
     calls_7d: int = 0
     calls_today: int = 0
@@ -276,9 +309,9 @@ class OverviewResponse(BaseModel):
 @router.get(
     "/overview",
     response_model=SuccessEnvelope[OverviewResponse],
-    dependencies=[Depends(_require_admin)],
 )
 async def get_overview(
+    request: Request,
     app: ApplicationDep,
     store: ControlStoreDep,
     request_id: RequestIdDep,
@@ -316,6 +349,7 @@ async def get_overview(
             model=app._settings.llm.model,
             version=__version__,
             auth_mode=auth_mode,
+            docs_enabled=request.app.docs_url is not None,
             quota=None,
             calls_7d=await store.count_requests(from_ts=week_ago),
             calls_today=await store.count_requests(from_ts=day_start),
@@ -352,7 +386,6 @@ class MemoryListResponse(BaseModel):
 @router.get(
     "/memories",
     response_model=SuccessEnvelope[MemoryListResponse],
-    dependencies=[Depends(_require_admin)],
 )
 async def list_memories(
     app: ApplicationDep,
@@ -375,7 +408,6 @@ async def list_memories(
 @router.get(
     "/memories/{memory_id}",
     response_model=SuccessEnvelope[dict[str, Any]],
-    dependencies=[Depends(_require_admin)],
 )
 async def get_memory(
     memory_id: str,
@@ -410,7 +442,6 @@ class AgentListResponse(BaseModel):
 @router.get(
     "/agents",
     response_model=SuccessEnvelope[AgentListResponse],
-    dependencies=[Depends(_require_admin)],
 )
 async def list_agents(
     app: ApplicationDep,

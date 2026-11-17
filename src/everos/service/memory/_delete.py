@@ -26,7 +26,6 @@ from __future__ import annotations
 
 __all__ = ["DeleteResult", "Deleter"]
 
-import re
 from collections.abc import Awaitable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -43,6 +42,8 @@ from everos.memory import user_cluster_lock
 from everos.memory.models import Episode
 from everos.memory.ports import MemoryRef, Scope, SessionKey
 
+from ._ids import split_episode_memory_id
+
 if TYPE_CHECKING:
     from everos.config import MemorizeSettings
     from everos.memory.deps import Stores
@@ -52,7 +53,6 @@ logger = get_logger("everos.service.memory")
 
 _QUEUED = "queued work for this session; nothing was deleted, retry later"
 _LOCKED = "session is busy; nothing was deleted, retry later"
-_MEMORY_ID = re.compile(r"(?P<owner>.+)_(?P<entry>ep_\d{8}_\d+)")
 _DETACH_ATTEMPTS = 3
 _PREVIEW_CAP = 5
 """A cluster's preview length, as everalgo clustering keeps it (``preview_cap``
@@ -274,7 +274,7 @@ class Deleter:
             raise ValueError(f"unsupported memory_type {memory_type!r}")
         by_owner: dict[str, list[str]] = {}
         for memory_id in dict.fromkeys(ids):
-            owner_id, entry_id = _split_memory_id(memory_id)
+            owner_id, entry_id = split_episode_memory_id(memory_id)
             if user_id is not None and owner_id != user_id:
                 continue
             by_owner.setdefault(owner_id, []).append(entry_id)
@@ -380,14 +380,6 @@ class Deleter:
             last_ts=max(e.timestamp for e in left),
             preview=[e.episode for e in newest],
         )
-
-
-def _split_memory_id(memory_id: str) -> tuple[str, str]:
-    """``<owner_id>_<entry_id>`` -> ``(owner_id, entry_id)`` (validated upstream)."""
-    match = _MEMORY_ID.fullmatch(memory_id)
-    if match is None:
-        raise ValueError(f"not an episode memory id: {memory_id!r}")
-    return match["owner"], match["entry"]
 
 
 async def _incomplete[T](step: Awaitable[T]) -> T:

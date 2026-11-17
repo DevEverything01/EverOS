@@ -42,10 +42,12 @@ from everos.memory.models import (
 from everos.memory.ports import (
     MemoryRef,
     NoSourceCheck,
+    ReplaceOutcome,
     Scope,
     SessionKey,
     SourceCheck,
     Stored,
+    VersionedEpisode,
 )
 
 
@@ -181,6 +183,38 @@ class InMemoryEpisodeStore(_DailyLog[Episode]):
         return [
             s for s in self.records if s.scope == scope and s.ref.entry_id in wanted
         ]
+
+    async def read_versioned(
+        self, scope: Scope, entry_id: str
+    ) -> VersionedEpisode | None:
+        for stored in self.records:
+            if stored.scope == scope and stored.ref.entry_id == entry_id:
+                return VersionedEpisode(
+                    stored=Stored(
+                        ref=stored.ref,
+                        scope=scope,
+                        item=stored.item.model_copy(deep=True),
+                    ),
+                    version=stored.item.model_dump_json(),
+                )
+        return None
+
+    async def replace(
+        self,
+        scope: Scope,
+        entry_id: str,
+        episode: Episode,
+        *,
+        expected_version: str | None = None,
+    ) -> ReplaceOutcome:
+        for i, stored in enumerate(self.records):
+            if stored.scope == scope and stored.ref.entry_id == entry_id:
+                current = stored.item.model_dump_json()
+                if expected_version is not None and current != expected_version:
+                    return ReplaceOutcome.CONFLICT
+                self.records[i] = Stored(ref=stored.ref, scope=scope, item=episode)
+                return ReplaceOutcome.REPLACED
+        return ReplaceOutcome.MISSING
 
     async def remove(self, scope: Scope, entry_ids: Collection[str]) -> list[MemoryRef]:
         wanted = set(entry_ids)

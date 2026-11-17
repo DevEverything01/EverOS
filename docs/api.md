@@ -1820,6 +1820,7 @@ Edit one episode's narrative, summary, or subject. Requires `memory:write` scope
 |---|---|---|---|
 | `memory_type` | `"episode"` | yes | Currently only episodes supported |
 | `memory_id` | `string` | yes | The episode ID |
+| `user_id` | `string` | no | Owner guard: refuse (403) an episode of another owner |
 | `patch` | `object` | yes | Fields to update: `{summary?, subject?, content?}` |
 
 #### Response body
@@ -1834,6 +1835,15 @@ Edit one episode's narrative, summary, or subject. Requires `memory:write` scope
   }
 }
 ```
+
+`unchanged: true` means only that the patch equals what is stored. Errors:
+
+| Status | When |
+|---|---|
+| `400` | `memory_id` is not `<owner_id>_ep_YYYYMMDD_<seq>` (the owner may contain `_`) |
+| `403` | `user_id` is set and the episode belongs to another owner |
+| `404` | No such episode |
+| `500` | The episode was found but could not be rewritten |
 
 ---
 
@@ -2049,9 +2059,18 @@ Get usage statistics for a time range.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `range` | `string` | One of `24h`, `7d`, `30d` |
+| `range` | `string` | One of `24h`, `7d`, `30d`; anything else is `400` |
 
-Response:
+`24h` returns 24 hourly buckets (`YYYY-MM-DDTHH:00:00Z`): the last 24 whole
+UTC hours including the current one, zero-filled, counted from the request
+logs (`requests`, `errors` and the per-route call metrics). `7d` / `30d`
+return exactly the last 7 / 30 UTC days **including today** (`7d` = today and
+the 6 days before it), one daily bucket (`YYYY-MM-DD`) per day from the daily
+usage counters. Earlier builds counted both the start and the end day, so
+`7d` covered 8 days and `30d` 31; totals over the same range are therefore
+smaller than before by one day's counts.
+
+Response (`7d`):
 
 ```json
 {
@@ -2078,6 +2097,7 @@ Get system overview for the dashboard.
     "model": "gpt-4o",
     "version": "1.8.0",
     "auth_mode": "api_key",
+    "docs_enabled": false,
     "quota": null
   }
 }
@@ -2102,7 +2122,8 @@ List all agents with case and skill counts.
 
 This document mirrors the OpenAPI 3.x spec that FastAPI auto-generates
 from the Pydantic DTOs. The spec is exposed when the server starts with
-`[server] docs_enabled = true` (the default).
+`ENV=DEV` (the default turns docs on only in dev mode) or with
+`[server] docs_enabled = true` set explicitly.
 
 ```bash
 ENV=DEV everos server start

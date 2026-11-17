@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import stat
+import sys
 from pathlib import Path
 
 import pytest
@@ -259,3 +262,51 @@ class TestTags:
         memories = await store.get_memories_by_tag("shared")
 
         assert set(memories) == {"mem-1", "mem-2"}
+
+
+def _db_file_modes(directory: Path) -> dict[str, int]:
+    return {
+        p.name: stat.S_IMODE(p.stat().st_mode)
+        for p in directory.iterdir()
+        if p.name.startswith("control.db")
+    }
+
+
+def _chmod_all(directory: Path, mode: int) -> None:
+    for p in directory.iterdir():
+        p.chmod(mode)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
+async def test_control_db_and_sidecars_are_owner_only(tmp_path: Path) -> None:
+    """``control.db`` holds the session secret and key hashes: 0600, sidecars too."""
+    old = os.umask(0o022)
+    try:
+        store = ControlStore(tmp_path / "control.db", SqliteSettings())
+        await store.create_schema()
+        await store.create_key("k", ["admin"])
+        modes = _db_file_modes(tmp_path)
+        await store.dispose()
+    finally:
+        os.umask(old)
+
+    assert "control.db" in modes
+    assert modes == dict.fromkeys(modes, 0o600)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
+async def test_existing_world_readable_db_is_tightened(tmp_path: Path) -> None:
+    db = tmp_path / "control.db"
+    first = ControlStore(db, SqliteSettings())
+    await first.create_schema()
+    await first.dispose()
+    _chmod_all(tmp_path, 0o644)
+
+    reopened = ControlStore(db, SqliteSettings())
+    await reopened.create_schema()
+    try:
+        modes = _db_file_modes(tmp_path)
+        assert "control.db" in modes
+        assert modes == dict.fromkeys(modes, 0o600)
+    finally:
+        await reopened.dispose()
